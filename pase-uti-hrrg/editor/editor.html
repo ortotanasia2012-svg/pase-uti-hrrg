@@ -229,6 +229,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--sans);min-height:100
   <div class="tb-actions">
     <input type="date" class="date-input" id="guardDate" value="2026-04-23">
     <button class="btn btn-gn" onclick="publishToGitHub()" id="gh-publish-btn">🚀 Publicar</button>
+    <button class="btn btn-rd" onclick="openCurvas()" id="curvas-btn">📈 Curvas</button>
     <button class="btn btn-pp" onclick="previewHTML()">👁 Vista previa</button>
     <button class="btn btn-ac" onclick="exportHTML()">⬇ Exportar HTML</button>
     <button class="btn btn-pp" onclick="importHTMLFile()">📥 Importar HTML</button>
@@ -741,6 +742,26 @@ function renderLabTab(p){
       ${lf('glucosa','Glucosa')}
       ${lf('urea','Urea')}
       ${lf('creat','Creatinina')}
+      ${(()=>{
+        const creat = parseFloat(l.creat||'');
+        const age   = parseFloat(p.age||'');
+        const sex   = (p.sex||'').toUpperCase();
+        if(!creat||!age) return '';
+        // CKD-EPI 2021 (race-free, sin raza)
+        // κ = 0.7 (F) / 0.9 (M) — α = -0.241 (F) / -0.302 (M)
+        const isFemale = sex==='F';
+        const k = isFemale ? 0.7 : 0.9;
+        const a = isFemale ? -0.241 : -0.302;
+        const scr_k = creat / k;
+        const term1 = Math.min(scr_k, 1) ** a;
+        const term2 = Math.max(scr_k, 1) ** (-1.200);
+        const ageFactor = 0.9938 ** age;
+        const sexFactor = isFemale ? 1.012 : 1.0;
+        const egfr = Math.round(142 * term1 * term2 * ageFactor * sexFactor);
+        const cls = egfr>=60?'vok':egfr>=30?'vw':'vb';
+        const stage = egfr>=90?'G1':egfr>=60?'G2':egfr>=45?'G3a':egfr>=30?'G3b':egfr>=15?'G4':'G5';
+        return `<div class="field"><label>FG (CKD-EPI)</label><div style="padding:.25rem .4rem;background:var(--sur2);border:1px solid var(--brd);border-radius:4px;font-family:var(--mono);font-size:.72rem"><span class="val ${cls}" style="font-size:.8rem;font-weight:700">${egfr}</span> <span style="font-size:.62rem;color:var(--tx2)">mL/min · ${stage}${!sex?'*':''}</span></div></div>`;
+      })()}
       ${lf('ac_urico','Ácido Úrico')}
       ${lf('lac','Ác. Láctico')}
       ${lf('amilasa','Amilasa')}
@@ -1638,13 +1659,26 @@ function renderBal24History(p){
     </tr>`;
   }).join('');
 
+  const totI = hist.reduce((s,h)=>s+(parseFloat((h.bal_24||{}).ing)||0),0);
+  const totE = hist.reduce((s,h)=>s+calcTotalEgr(h.bal_24||{}),0);
+  const totB = totI-totE;
+  const totC = totB>0?'bpos':totB<0?'bneg':'bz';
+  const totRow = hist.length>1?`<tr style="border-top:2px solid var(--brd)">
+    <td style="font-family:var(--mono);font-size:.56rem;font-weight:700;color:var(--mu)">ACUMULADO</td>
+    <td style="font-weight:700">${totI||'—'}</td>
+    <td></td>
+    <td style="font-weight:700">${totE||'—'}</td>
+    <td class="${totC}" style="font-weight:700">${(totB>0?'+':'')+Math.round(totB)} mL</td>
+    <td></td>
+  </tr>`:'';
+
   return `
   <div class="section">
     <div class="sec-header"><span class="sec-title">Historial 24 hs</span></div>
     <div class="sec-body" style="overflow-x:auto">
       <table class="bal-t" style="font-size:.67rem">
         <thead><tr><th>Fecha</th><th>Ing</th><th>Egresos</th><th>Egr ∑</th><th>Balance</th><th></th></tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>${rows}${totRow}</tbody>
       </table>
     </div>
   </div>`;
@@ -2141,7 +2175,13 @@ function exportHTML(){
             return `<div class="card"><div class="ct">Balances hídricos</div><div class="cb">
               ${hasTurnos?`<div style="font-family:var(--mono);font-size:.48rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);margin-bottom:.25rem">Turnos del día — <span class="${dayCls}" style="font-weight:700">${(dayBal>0?'+':'')+Math.round(dayBal)} mL</span></div><table class="bal-t">${hdr}${turnoRows}</table>`:''}
               ${has24?`<div style="font-family:var(--mono);font-size:.48rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);margin:.45rem 0 .25rem">Balance 24 hs</div><table class="bal-t">${hdr}<tr><td style="font-weight:600">24 hs</td><td>${i24||'—'}</td><td style="font-size:.6rem;color:var(--tx2)">${d24||'—'}</td><td style="font-weight:700">${e24||'—'}</td><td class="${c24}" style="font-weight:700">${(ba24>0?'+':'')+Math.round(ba24)} mL</td></tr></table>`:''}
-              ${hasHist?`<div style="font-family:var(--mono);font-size:.48rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);margin:.45rem 0 .25rem;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===''?'none':''">Historial 24 hs ▼</div><div style="display:none"><table class="bal-t">${hdr}${histRows}</table></div>`:''}
+              ${hasHist?`<div style="font-family:var(--mono);font-size:.48rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);margin:.45rem 0 .25rem;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===''?'none':''">Historial 24 hs ▼</div><div style="display:none"><table class="bal-t">${hdr}${histRows}${(()=>{
+                const totI=hist.reduce((s,h)=>s+(parseFloat((h.bal_24||{}).ing)||0),0);
+                const totE=hist.reduce((s,h)=>s+calcTotalEgr(h.bal_24||{}),0);
+                const totB=totI-totE;
+                const tc=totB>0?'bpos':totB<0?'bneg':'bz';
+                return hist.length>1?`<tr style="border-top:2px solid var(--brd)"><td style="font-family:var(--mono);font-size:.54rem;font-weight:700;color:var(--mu)">ACUMULADO</td><td style="font-weight:700">${totI||'—'}</td><td></td><td style="font-weight:700">${totE||'—'}</td><td class="${tc}" style="font-weight:700">${(totB>0?'+':'')+Math.round(totB)} mL</td></tr>`:'';
+              })()}</table></div>`:''}
             </div></div>`;
           })()}
 
@@ -2366,10 +2406,26 @@ function renderLabSection(p){
     ? `<div class="m4 g3" style="margin-top:.3rem">${p.lab_extras.filter(e=>e.nombre||e.valor).map(e=>`<div class="metric"><div class="val">${escHtml(e.valor||'—')}</div><div class="lbl">${escHtml(e.nombre||'')}${e.unidad?' '+e.unidad:''}</div></div>`).join('')}</div>`
     : '';
 
-  if(!groupHtml&&!extrasHtml) return '';
+  // CKD-EPI 2021
+  const ckdHtml = (()=>{
+    const creat = parseFloat(l.creat||'');
+    const age   = parseFloat(p.age||'');
+    const sex   = (p.sex||'').toUpperCase();
+    if(!creat||!age) return '';
+    const isFemale = sex==='F';
+    const k = isFemale?0.7:0.9, a = isFemale?-0.241:-0.302;
+    const scr_k = creat/k;
+    const egfr = Math.round(142*(Math.min(scr_k,1)**a)*(Math.max(scr_k,1)**(-1.200))*(0.9938**age)*(isFemale?1.012:1.0));
+    const cls = egfr>=60?'vok':egfr>=30?'vw':'vb';
+    const stage = egfr>=90?'G1':egfr>=60?'G2':egfr>=45?'G3a':egfr>=30?'G3b':egfr>=15?'G4':'G5';
+    return `<div class="metric"><div class="val ${cls}">${egfr}</div><div class="lbl">FG CKD-EPI · ${stage}</div></div>`;
+  })();
+
+  if(!groupHtml&&!extrasHtml&&!ckdHtml) return '';
   return `
     <div class="sh sh-lab g6"><span class="sd"></span>Laboratorio</div>
     ${groupHtml}
+    ${ckdHtml?`<div class="m4 g3" style="margin-top:.2rem">${ckdHtml}</div>`:''}
     ${l.otros?`<div class="note g3" style="white-space:pre-wrap">${escHtml(l.otros)}</div>`:''}
     ${extrasHtml}`;
 }
@@ -2703,6 +2759,227 @@ async function getExportHTML(){
     HTMLAnchorElement.prototype.click = function(){ HTMLAnchorElement.prototype.click = _click; };
     exportHTML();
   });
+}
+</script>
+
+<!-- CURVAS MODAL -->
+<div id="curvas-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:var(--sur);border:1px solid var(--brd);border-radius:12px;width:min(92vw,780px);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+    <div style="display:flex;align-items:center;gap:.6rem;padding:.75rem 1rem;border-bottom:1px solid var(--brd);flex-shrink:0">
+      <span style="font-weight:700;font-size:.85rem">📈 Curvas de tendencia</span>
+      <span id="curvas-patient" style="font-size:.7rem;color:var(--tx2);flex:1"></span>
+      <button class="btn btn-mu" style="font-size:.62rem" onclick="closeCurvas()">✕ Cerrar</button>
+    </div>
+    <div style="padding:.75rem 1rem;border-bottom:1px solid var(--brd);flex-shrink:0;display:flex;flex-wrap:wrap;gap:.4rem;align-items:center">
+      <span style="font-size:.62rem;color:var(--tx2);font-family:var(--mono)">Parámetro:</span>
+      <select id="curvas-select" onchange="renderCurva()" style="background:var(--sur2);border:1px solid var(--brd);border-radius:5px;padding:.25rem .4rem;font-size:.68rem;color:var(--tx);outline:none;flex:1;max-width:220px"></select>
+      <span style="font-size:.62rem;color:var(--tx2);font-family:var(--mono)">Fuente:</span>
+      <select id="curvas-source" onchange="populateCurvaSelect();renderCurva();" style="background:var(--sur2);border:1px solid var(--brd);border-radius:5px;padding:.25rem .4rem;font-size:.68rem;color:var(--tx);outline:none">
+        <option value="lab">Laboratorio</option>
+        <option value="eab">EAB (columnas)</option>
+        <option value="bal24">Balance 24hs</option>
+      </select>
+    </div>
+    <div style="flex:1;overflow:auto;padding:.75rem 1rem;min-height:200px">
+      <canvas id="curvas-canvas" style="width:100%;display:none"></canvas>
+      <div id="curvas-empty" style="display:none;text-align:center;color:var(--tx2);font-size:.72rem;padding:2rem 1rem">Sin datos suficientes.</div>
+      <div id="curvas-table" style="margin-top:.75rem;overflow-x:auto"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CURVA_LAB_FIELDS = [
+  ['hb','Hb (g/dL)'],['hcto','Hcto (%)'],['gb','GB (×1000)'],['plaq','Plaquetas'],['vsg','VSG'],
+  ['neutro','Neutrófilos %'],['linfo','Linfocitos %'],['cayados','Cayados %'],
+  ['glucosa','Glucosa'],['urea','Urea'],['creat','Creatinina'],['lac','Lactato'],
+  ['na','Sodio'],['k','Potasio'],['cl','Cloro'],['ca','Calcio'],['mg','Magnesio'],
+  ['ck_total','CK Total'],['ck_mb','CK MB'],['ldh','LDH'],['troponina','Troponina'],
+  ['got','GOT'],['gpt','GPT'],['falc','F.ALC'],['bili_t','Bili Total'],['albumina','Albúmina'],
+  ['tp','TP'],['kptt','KPTT'],['dimero_d','Dímero D'],['fibrinogeno','Fibrinógeno'],
+  ['clearance','Clearance Creat.'],
+];
+const CURVA_BAL_FIELDS = [
+  ['ing','Ingresos (mL)'],['egr_diur','Diuresis (mL)'],['egr_sng','SNG (mL)'],
+  ['egr_dren','Drenajes (mL)'],['egr_mf','MF (mL)'],['balance','Balance (mL)'],
+];
+const CURVA_EAB_FIELDS = [
+  ['pafi','PAFI'],['ph','pH'],['pco2','pCO₂'],['po2','pO₂'],['hco3','HCO₃'],
+  ['eb','EB'],['sat','SatO₂'],['fio2','FiO₂'],['na','Na⁺'],['k','K⁺'],
+];
+
+function openCurvas(){
+  const p = getPatient();
+  if(!p){ alert('Seleccioná un paciente primero.'); return; }
+  document.getElementById('curvas-modal').style.display='flex';
+  document.getElementById('curvas-patient').textContent=(p.name||'Sin nombre')+(p.bed?' · Cama '+p.bed:'');
+  populateCurvaSelect();
+  renderCurva();
+}
+function closeCurvas(){ document.getElementById('curvas-modal').style.display='none'; }
+
+function populateCurvaSelect(){
+  const p = getPatient(); if(!p) return;
+  const source = document.getElementById('curvas-source').value;
+  const sel    = document.getElementById('curvas-select');
+  const fields = source==='lab'?CURVA_LAB_FIELDS:source==='eab'?CURVA_EAB_FIELDS:CURVA_BAL_FIELDS;
+  const prev   = sel.value;
+  const withData = fields.filter(([key])=>{
+    if(source==='lab'){
+      const cur = parseFloat((p.lab||{})[key]);
+      if(!isNaN(cur)) return true;
+      return (p.lab_history||[]).some(h=>!isNaN(parseFloat((h.lab||{})[key])));
+    } else if(source==='eab'){
+      // EAB data comes from eab_cols (multiple columns per patient)
+      return (p.eab_cols||[]).some(col=>!isNaN(parseFloat(col[key])));
+    } else {
+      const hist = p.bal_history||[];
+      if(key==='balance') return hist.some(h=>{ const b=h.bal_24||{}; return (parseFloat(b.ing)||0)||calcTotalEgr(b); });
+      const curB = parseFloat((p.bal_24||{})[key]);
+      if(!isNaN(curB)&&curB) return true;
+      return hist.some(h=>!isNaN(parseFloat((h.bal_24||{})[key])));
+    }
+  });
+  sel.innerHTML = withData.length
+    ? withData.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')
+    : '<option value="">Sin datos disponibles</option>';
+  if(prev && [...sel.options].some(o=>o.value===prev)) sel.value=prev;
+}
+
+function getDataPoints(source, key){
+  const p = getPatient(); if(!p) return [];
+  const pts = [];
+  if(source==='lab'){
+    const hist = [...(p.lab_history||[])].reverse();
+    hist.forEach(h=>{ const v=parseFloat((h.lab||{})[key]); if(!isNaN(v)) pts.push({date:h.label||h.date,val:v,isActual:false}); });
+    const cur = parseFloat((p.lab||{})[key]);
+    if(!isNaN(cur)) pts.push({date:'Actual',val:cur,isActual:true});
+  } else if(source==='eab'){
+    // Each EAB column is one data point; label is the column label
+    (p.eab_cols||[]).forEach(col=>{
+      const v = parseFloat(col[key]);
+      if(!isNaN(v)) pts.push({date:col.label||'—', val:v, isActual:false});
+    });
+  } else {
+    const hist = [...(p.bal_history||[])].reverse();
+    hist.forEach(h=>{
+      const b=h.bal_24||{};
+      const v = key==='balance'?(parseFloat(b.ing)||0)-calcTotalEgr(b):parseFloat(b[key]);
+      if(!isNaN(v)) pts.push({date:h.label||h.date,val:v,isActual:false});
+    });
+    const b=p.bal_24||{};
+    const cur = key==='balance'?(parseFloat(b.ing)||0)-calcTotalEgr(b):parseFloat(b[key]);
+    if(!isNaN(cur)&&cur) pts.push({date:'Actual',val:cur,isActual:true});
+  }
+  return pts;
+}
+
+function renderCurva(){
+  const source   = document.getElementById('curvas-source').value;
+  const key      = document.getElementById('curvas-select').value;
+  const canvas   = document.getElementById('curvas-canvas');
+  const empty    = document.getElementById('curvas-empty');
+  const tableEl  = document.getElementById('curvas-table');
+  if(!key){ canvas.style.display='none'; empty.style.display='block'; empty.textContent='Sin parámetro seleccionado.'; tableEl.innerHTML=''; return; }
+  const pts = getDataPoints(source, key);
+  const label = [...CURVA_LAB_FIELDS,...CURVA_BAL_FIELDS,...CURVA_EAB_FIELDS].find(([k])=>k===key)?.[1]||key;
+  if(pts.length<2){ canvas.style.display='none'; empty.style.display='block'; empty.textContent=pts.length===0?'Sin datos para este parámetro.':'Solo hay un punto de datos. Guardá más snapshots para ver la tendencia.'; tableEl.innerHTML=''; return; }
+  empty.style.display='none'; canvas.style.display='block';
+
+  // Canvas setup
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.parentElement.clientWidth-2;
+  const H=Math.min(300,Math.round(W*0.42));
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+
+  const PAD={t:24,r:16,b:52,l:54};
+  const cW=W-PAD.l-PAD.r, cH=H-PAD.t-PAD.b;
+  const vals=pts.map(p=>p.val);
+  const minV=Math.min(...vals), maxV=Math.max(...vals);
+  const pad=(maxV-minV||Math.abs(maxV)||1)*0.18;
+  const yMin=minV-pad, yMax=maxV+pad;
+  const xOf=i=>PAD.l+(pts.length>1?i/(pts.length-1):0.5)*cW;
+  const yOf=v=>PAD.t+cH-((v-yMin)/(yMax-yMin))*cH;
+
+  const st=getComputedStyle(document.documentElement);
+  const C={ac:st.getPropertyValue('--ac').trim()||'#4a9eff',gn:st.getPropertyValue('--gn').trim()||'#22c55e',tx2:st.getPropertyValue('--tx2').trim()||'#888',brd:st.getPropertyValue('--brd').trim()||'#333',am:st.getPropertyValue('--am').trim()||'#f59e0b'};
+
+  // Grid
+  for(let i=0;i<=5;i++){
+    const y=PAD.t+(i/5)*cH, v=yMax-(i/5)*(yMax-yMin);
+    ctx.strokeStyle=C.brd; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(PAD.l+cW,y); ctx.stroke();
+    ctx.fillStyle=C.tx2; ctx.font=`10px monospace`; ctx.textAlign='right';
+    ctx.fillText(Math.abs(v)<10?v.toFixed(1):Math.round(v), PAD.l-5, y+3.5);
+  }
+
+  // Linear regression trend line
+  const n=pts.length;
+  const sx=pts.reduce((s,_,i)=>s+i,0), sy=pts.reduce((s,p)=>s+p.val,0);
+  const sxy=pts.reduce((s,p,i)=>s+i*p.val,0), sx2=pts.reduce((s,_,i)=>s+i*i,0);
+  const slope=(n*sxy-sx*sy)/(n*sx2-sx*sx||1);
+  const inter=(sy-slope*sx)/n;
+  ctx.strokeStyle=C.tx2+'88'; ctx.lineWidth=1.2; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(xOf(0),yOf(inter)); ctx.lineTo(xOf(n-1),yOf(slope*(n-1)+inter)); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Area fill
+  ctx.beginPath(); ctx.moveTo(xOf(0),yOf(pts[0].val));
+  pts.forEach((p,i)=>ctx.lineTo(xOf(i),yOf(p.val)));
+  ctx.lineTo(xOf(n-1),PAD.t+cH); ctx.lineTo(xOf(0),PAD.t+cH); ctx.closePath();
+  ctx.fillStyle=C.ac+'28'; ctx.fill();
+
+  // Line
+  ctx.strokeStyle=C.ac; ctx.lineWidth=2.5; ctx.lineJoin='round';
+  ctx.beginPath(); pts.forEach((p,i)=>i===0?ctx.moveTo(xOf(i),yOf(p.val)):ctx.lineTo(xOf(i),yOf(p.val))); ctx.stroke();
+
+  // Points + value labels
+  pts.forEach((p,i)=>{
+    const x=xOf(i), y=yOf(p.val), col=p.isActual?C.gn:C.ac;
+    ctx.beginPath(); ctx.arc(x,y,p.isActual?6:4,0,Math.PI*2);
+    ctx.fillStyle=col; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.fill(); ctx.stroke();
+    ctx.fillStyle=col; ctx.font=`bold 10px monospace`; ctx.textAlign='center';
+    const lbl=Math.abs(p.val)<10?p.val.toFixed(1):Math.round(p.val);
+    ctx.fillText(lbl, x, y-10);
+  });
+
+  // X labels (rotated)
+  ctx.fillStyle=C.tx2; ctx.font='10px sans-serif'; ctx.textAlign='center';
+  pts.forEach((p,i)=>{ ctx.save(); ctx.translate(xOf(i),PAD.t+cH+14); ctx.rotate(-Math.PI/6); ctx.fillText(p.date,0,0); ctx.restore(); });
+
+  // Title + trend arrow
+  const trendUp=slope>0.05, trendDn=slope<-0.05;
+  ctx.textAlign='left'; ctx.font='11px sans-serif'; ctx.fillStyle=C.tx2;
+  ctx.fillText(label, PAD.l, 14);
+  ctx.fillStyle=trendUp?C.am:trendDn?C.gn:C.tx2;
+  ctx.font='bold 12px sans-serif';
+  ctx.fillText(trendUp?' ↑ sube':trendDn?' ↓ baja':' → estable', PAD.l+ctx.measureText(label).width+2, 14);
+
+  // Table
+  const dir=trendUp?'↑ sube':trendDn?'↓ baja':'→ estable';
+  tableEl.innerHTML=`
+    <div style="font-size:.6rem;color:var(--tx2);font-family:var(--mono);margin-bottom:.35rem">
+      Tendencia: <strong>${dir}</strong> &nbsp;·&nbsp; Mín: <strong>${Math.min(...vals).toFixed(1)}</strong> &nbsp;·&nbsp; Máx: <strong>${Math.max(...vals).toFixed(1)}</strong> &nbsp;·&nbsp; Último: <strong>${vals[vals.length-1].toFixed(1)}</strong>
+    </div>
+    <table style="border-collapse:collapse;font-size:.65rem;width:100%">
+      <thead><tr>
+        <th style="text-align:left;padding:.15rem .4rem;border-bottom:1px solid var(--brd);font-family:var(--mono);font-size:.5rem;color:var(--tx2);text-transform:uppercase">Fecha</th>
+        <th style="text-align:right;padding:.15rem .4rem;border-bottom:1px solid var(--brd);font-family:var(--mono);font-size:.5rem;color:var(--tx2);text-transform:uppercase">Valor</th>
+        <th style="text-align:right;padding:.15rem .4rem;border-bottom:1px solid var(--brd);font-family:var(--mono);font-size:.5rem;color:var(--tx2);text-transform:uppercase">Δ vs anterior</th>
+      </tr></thead>
+      <tbody>${pts.map((pt,i)=>{
+        const diff=i===0?null:pt.val-pts[i-1].val;
+        const dStr=diff===null?'—':(diff>0?'+':'')+diff.toFixed(1);
+        const dCol=diff===null?'':diff>0?'color:var(--am)':'color:var(--gn)';
+        return `<tr style="border-bottom:1px solid var(--sur3)">
+          <td style="padding:.15rem .4rem;${pt.isActual?'font-weight:700;color:var(--gn)':''}">${pt.date}${pt.isActual?' ●':''}</td>
+          <td style="font-family:var(--mono);font-weight:700;text-align:right;padding:.15rem .4rem">${Math.abs(pt.val)<10?pt.val.toFixed(1):Math.round(pt.val)}</td>
+          <td style="font-family:var(--mono);text-align:right;padding:.15rem .4rem;${dCol}">${dStr}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
 }
 </script>
 
