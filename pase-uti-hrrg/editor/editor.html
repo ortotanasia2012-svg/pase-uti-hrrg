@@ -228,6 +228,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--sans);min-height:100
   </div>
   <div class="tb-actions">
     <input type="date" class="date-input" id="guardDate" value="2026-04-23">
+    <button class="btn btn-gn" onclick="publishToGitHub()" id="gh-publish-btn">🚀 Publicar</button>
     <button class="btn btn-pp" onclick="previewHTML()">👁 Vista previa</button>
     <button class="btn btn-ac" onclick="exportHTML()">⬇ Exportar HTML</button>
     <button class="btn btn-pp" onclick="importHTMLFile()">📥 Importar HTML</button>
@@ -316,7 +317,16 @@ function newPatient(){
       otros:''
     },
     // balances
-    balances:[], // [{label, ing, egr, egr_diur, egr_sng, egr_dren, egr_mf, egr_otros}]
+    // balances del día: 3 turnos fijos + balance 24hs manual + historial
+    bal_turnos: [
+      {label:'6-14 h',  ing:'', egr_diur:'', egr_sng:'', egr_dren:'', egr_mf:''},
+      {label:'14-22 h', ing:'', egr_diur:'', egr_sng:'', egr_dren:'', egr_mf:''},
+      {label:'22-6 h',  ing:'', egr_diur:'', egr_sng:'', egr_dren:'', egr_mf:''},
+    ],
+    bal_24: { ing:'', egr_diur:'', egr_sng:'', egr_dren:'', egr_mf:'' },
+    bal_history: [], // snapshots de 24hs: [{date, label, bal_24, bal_turnos}]
+    balances:[], // legacy
+    balances:[], // legacy
     // pendientes
     pendientes:[],
     // notas libres
@@ -553,7 +563,20 @@ function renderInfoTab(p){
     <div id="dx-list">${renderListItems(p.dx,'dx')}</div>
   </div></div>
 
-  <div class="section"><div class="sec-header"><span class="sec-title">Cronología reciente</span><button class="btn btn-gn" style="font-size:.55rem;padding:.2rem .45rem" onclick="addTimeline()">+ Agregar</button></div><div class="sec-body">
+  <div class="section"><div class="sec-header"><span class="sec-title">Cronología reciente</span>
+    <button class="btn btn-pp" style="font-size:.55rem;padding:.2rem .45rem" onclick="openTimelineImport()">📋 Importar texto</button>
+    <button class="btn btn-gn" style="font-size:.55rem;padding:.2rem .45rem" onclick="addTimeline()">+ Agregar</button>
+  </div>
+  <div id="timeline-import-panel" style="display:none;background:var(--acl);border:1px solid var(--ac);border-radius:6px;padding:.6rem .8rem;margin:.3rem 0 .5rem">
+    <div style="font-size:.65rem;font-weight:600;color:var(--ac);margin-bottom:.25rem">📋 Importar cronología desde texto</div>
+    <div style="font-size:.6rem;color:var(--tx2);margin-bottom:.35rem">Una línea por evento. Si empieza con fecha (ej: <strong>14/5</strong> ingresa a UTI) la extrae automáticamente. Los eventos existentes no se tocan.</div>
+    <textarea id="timeline-import-txt" rows="5" style="width:100%;background:var(--sur);border:1px solid var(--brd);border-radius:4px;font-size:.68rem;font-family:var(--mono);padding:.35rem .45rem;color:var(--tx);resize:vertical;outline:none;box-sizing:border-box" placeholder="14/5 ingresa a UTI&#10;15/5 IOT / ARM&#10;16/5 inicio ATB"></textarea>
+    <div style="display:flex;gap:.4rem;margin-top:.4rem">
+      <button class="btn btn-gn" style="font-size:.58rem" onclick="importTimeline()">✓ Agregar a cronología</button>
+      <button class="btn btn-mu" style="font-size:.58rem" onclick="closeTimelineImport()">✕ Cancelar</button>
+    </div>
+  </div>
+  <div class="sec-body">
     <div id="timeline-list">${renderTimelineItems(p.timeline)}</div>
   </div></div>
   `;
@@ -677,7 +700,18 @@ function renderLabTab(p){
   <div class="section">
     <div class="sec-header">
       <span class="sec-title">Laboratorio</span>
+      <button class="btn btn-pp" style="font-size:.55rem;padding:.2rem .45rem" onclick="openLabImport()" title="Pegar fila de la planilla Excel">📋 Importar planilla</button>
+      <button class="btn btn-mu" style="font-size:.55rem;padding:.2rem .45rem" onclick="clearLab()" title="Limpiar todos los valores del laboratorio">🗑 Limpiar lab</button>
       <button class="btn btn-am" style="font-size:.55rem;padding:.2rem .45rem" onclick="saveLabSnapshot()" title="Archiva el laboratorio actual con fecha para comparar después">📷 Guardar snapshot</button>
+    </div>
+    <div id="lab-import-panel" style="display:none;background:var(--acl);border:1px solid var(--ac);border-radius:6px;padding:.6rem .8rem;margin-bottom:.5rem">
+      <div style="font-size:.65rem;font-weight:600;color:var(--ac);margin-bottom:.25rem">📋 Importar desde planilla de laboratorio</div>
+      <div style="font-size:.6rem;color:var(--tx2);margin-bottom:.4rem">Seleccioná la fila del paciente en Excel → Ctrl+C → pegá acá. Las celdas vacías se ignoran, los valores cargados manualmente que no están en la planilla no se tocan.</div>
+      <textarea id="lab-import-txt" rows="3" style="width:100%;background:var(--sur);border:1px solid var(--brd);border-radius:4px;font-size:.65rem;font-family:var(--mono);padding:.3rem .4rem;color:var(--tx);resize:vertical;outline:none;box-sizing:border-box" placeholder="Pegá acá la fila copiada desde Excel..."></textarea>
+      <div style="display:flex;gap:.4rem;margin-top:.4rem">
+        <button class="btn btn-gn" style="font-size:.58rem" onclick="importFromPlanilla()">✓ Importar</button>
+        <button class="btn btn-mu" style="font-size:.58rem" onclick="closeLabImport()">✕ Cancelar</button>
+      </div>
     </div>
     <div class="sec-body">
 
@@ -846,6 +880,137 @@ const LAB_HISTORY_FIELDS = [
   ['clearance','Cl.Creat'],
 ];
 
+function openLabImport(){
+  const panel = document.getElementById('lab-import-panel');
+  if(panel) panel.style.display = panel.style.display==='none'?'block':'none';
+}
+function closeLabImport(){
+  const panel = document.getElementById('lab-import-panel');
+  if(panel) panel.style.display = 'none';
+  const txt = document.getElementById('lab-import-txt');
+  if(txt) txt.value = '';
+}
+
+function importFromPlanilla(){
+  const txt = document.getElementById('lab-import-txt');
+  if(!txt||!txt.value.trim()){ alert('Pegá primero una fila de la planilla.'); return; }
+  const p = getPatient(); if(!p) return;
+  if(!p.lab) p.lab = {};
+
+  const cols = txt.value.split('\t').map(v=>v.trim());
+
+  // Detectar si pegaron el encabezado
+  if(cols[2]==='pH'||cols[0]==='fiO2'||cols[1]==='CAMA'){
+    alert('Eso parece el encabezado. Copiá la fila con los valores del paciente, no el título.');
+    return;
+  }
+
+  // Mapeo columna → campo
+  // Orden planilla: fiO2(0), CAMA(1), pH(2), pCO2(3), pO2(4), HCO3(5), EB(6), SatO2(7),
+  // PAFI(8), Na(9), K(10), Cl(11), Gluc(12), Lac(13), Hto(14), Hb(15), GB(16),
+  // Urea(17), Crea(18), BT(19), BD(20), BI(21), GOT(22), GPT(23), FAL(24),
+  // Alb(25), PT(26), PBNP(27), Plt(28), TP(29), CP(30), RIN(31), KPTT(32)
+  const LAB_MAP = {
+    9:'na', 10:'k', 11:'cl', 12:'glucosa', 13:'lac',
+    14:'hcto', 15:'hb', 16:'gb',
+    17:'urea', 18:'creat',
+    19:'bili_t', 20:'bili_d', 21:'bili_i',
+    22:'got', 23:'gpt', 24:'falc',
+    25:'albumina', 26:'prot_t',
+    28:'plaq', 29:'tp', 32:'kptt'
+  };
+  const EAB_MAP = {
+    2:'ph', 3:'pco2', 4:'po2', 5:'hco3', 6:'eb', 7:'sat', 8:'pafi'
+  };
+
+  const ok = v => v && v!=='' && !isNaN(parseFloat(v)) && !['#DIV/0!','#REF!','#NUM!','#N/A'].includes(v);
+
+  // Lab fields — solo sobreescribe si hay valor
+  let imported = 0;
+  Object.entries(LAB_MAP).forEach(([idx,key])=>{
+    const val = cols[+idx];
+    if(ok(val)){ p.lab[key] = val; imported++; }
+  });
+
+  // EAB — actualiza primera columna o crea una nueva
+  const hasEAB = Object.keys(EAB_MAP).some(i=>ok(cols[+i]));
+  if(hasEAB){
+    if(!p.eab_cols||!p.eab_cols.length)
+      p.eab_cols = [{label:'Planilla',ph:'',pco2:'',po2:'',hco3:'',eb:'',sat:'',pafi:'',fio2:'',na:'',k:'',cl:''}];
+    const eab = p.eab_cols[0];
+    if(ok(cols[0])) eab.fio2 = cols[0]; // FiO2
+    Object.entries(EAB_MAP).forEach(([idx,key])=>{ if(ok(cols[+idx])) eab[key]=cols[+idx]; });
+    imported++;
+  }
+
+  saveData();
+  closeLabImport();
+  renderEditor();
+  toast('Importados '+imported+' valores'+( hasEAB?' + EAB':'')+' ✓');
+}
+
+function clearLab(){
+  if(!confirm('¿Limpiar todos los valores del laboratorio actual? (Los snapshots guardados no se tocan)')) return;
+  flushInputs();
+  const p = getPatient(); if(!p) return;
+  p.lab = {
+    hb:'',hcto:'',gb:'',plaq:'',vsg:'',
+    neutro:'',linfo:'',mono:'',eosi:'',baso:'',cayados:'',meta:'',blast:'',
+    glucosa:'',urea:'',creat:'',ac_urico:'',lac:'',amilasa:'',fenitoina:'',
+    na:'',k:'',cl:'',ca:'',fosforo:'',mg:'',
+    ck_total:'',ck_mb:'',ldh:'',troponina:'',
+    got:'',gpt:'',falc:'',bili_t:'',bili_d:'',bili_i:'',
+    prot_t:'',albumina:'',globulinas:'',
+    colesterol:'',tg:'',hdl:'',ldl:'',
+    ferremia:'',transferrina:'',sat_transf:'',ferritina:'',prealb:'',
+    tp:'',kptt:'',dimero_d:'',fibrinogeno:'',pdf:'',
+    orina:'',urea_o:'',creat_o:'',clearance:'',ca_o:'',fosforo_o:'',iono_o:'',
+    otros:''
+  };
+  p.lab_extras = [];
+  saveData();
+  renderEditor();
+  toast('Laboratorio limpiado ✓');
+}
+
+function openTimelineImport(){
+  const panel = document.getElementById('timeline-import-panel');
+  if(panel) panel.style.display = panel.style.display==='none'?'block':'none';
+}
+function closeTimelineImport(){
+  const panel = document.getElementById('timeline-import-panel');
+  if(panel) panel.style.display = 'none';
+  const txt = document.getElementById('timeline-import-txt');
+  if(txt) txt.value = '';
+}
+function importTimeline(){
+  const txt = document.getElementById('timeline-import-txt');
+  if(!txt||!txt.value.trim()){ alert('Escribí o pegá eventos primero.'); return; }
+  flushInputs();
+  const p = getPatient(); if(!p) return;
+  p.timeline = p.timeline||[];
+
+  // Parse lines: each line = one event
+  // Format: "14/5 ingresa a uti" or "14/5/2025 ingresa a uti" or just "ingresa a uti"
+  const lines = txt.value.split('\n').map(l=>l.trim()).filter(Boolean);
+  let added = 0;
+  lines.forEach(line=>{
+    // Try to extract date at start: dd/mm, dd/mm/yyyy, dd-mm, dd-mm-yyyy
+    const dateMatch = line.match(/^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)\s+(.*)/);
+    if(dateMatch){
+      p.timeline.push({ date: dateMatch[1], text: dateMatch[2] });
+    } else {
+      p.timeline.push({ date: '', text: line });
+    }
+    added++;
+  });
+
+  saveData();
+  closeTimelineImport();
+  renderEditor();
+  toast(added+' evento'+(added!==1?'s':'')+' agregado'+(added!==1?'s':'')+' ✓');
+}
+
 function saveLabSnapshot(){
   flushInputs();
   const p = getPatient(); if(!p) return;
@@ -953,58 +1118,99 @@ function renderLabHistory(p){
 
 // ─── BALANCES ─────────────────────────────────
 function calcTotalEgr(b){
-  return (parseFloat(b.egr_diur)||0)
-       + (parseFloat(b.egr_sng)||0)
-       + (parseFloat(b.egr_dren)||0)
-       + (parseFloat(b.egr_mf)||0)
-       + (parseFloat(b.egr_otros)||0)
-       + (parseFloat(b.egr)||0); // legacy field
+  return (parseFloat(b.egr_diur)||0)+(parseFloat(b.egr_sng)||0)
+        +(parseFloat(b.egr_dren)||0)+(parseFloat(b.egr_mf)||0)
+        +(parseFloat(b.egr_otros)||0)+(parseFloat(b.egr)||0);
 }
 
 function renderBalancesTab(p){
-  const bals = p.balances||[];
+  const turnos = p.bal_turnos || [
+    {label:'6-14 h', ing:'',egr_diur:'',egr_sng:'',egr_dren:'',egr_mf:''},
+    {label:'14-22 h',ing:'',egr_diur:'',egr_sng:'',egr_dren:'',egr_mf:''},
+    {label:'22-6 h', ing:'',egr_diur:'',egr_sng:'',egr_dren:'',egr_mf:''},
+  ];
+  const b24 = p.bal_24 || {ing:'',egr_diur:'',egr_sng:'',egr_dren:'',egr_mf:''};
+
+  // Day totals from turnos
+  const dayIng = turnos.reduce((s,t)=>s+(parseFloat(t.ing)||0),0);
+  const dayEgr = turnos.reduce((s,t)=>s+calcTotalEgr(t),0);
+  const dayBal = dayIng - dayEgr;
+  const dayCls = dayBal>0?'bal-pos':dayBal<0?'bal-neg':'bal-zero';
+
+  // 24hs
+  const egr24 = calcTotalEgr(b24);
+  const bal24 = (parseFloat(b24.ing)||0) - egr24;
+  const cls24 = bal24>0?'bal-pos':bal24<0?'bal-neg':'bal-zero';
+
+  const turnoCols = turnos.map((t,i)=>{
+    const tEgr = calcTotalEgr(t);
+    const tBal = (parseFloat(t.ing)||0)-tEgr;
+    const tCls = tBal>0?'bal-pos':tBal<0?'bal-neg':'bal-zero';
+    return `<div class="bal-card">
+      <div class="bal-card-header">
+        <span style="font-weight:700;font-size:.72rem;color:var(--tx);flex:1">${escHtml(t.label)}</span>
+        <span id="btr-${i}" class="bal-result ${tCls}">${(tBal>0?'+':'')+Math.round(tBal)} mL</span>
+      </div>
+      <div class="bal-card-body">
+        <div class="bal-col bal-col-ing">
+          <div class="bal-col-title bal-ing-title">↓ Ing</div>
+          <div class="bal-field"><label>Total</label><input type="number" value="${t.ing||''}" placeholder="mL" oninput="updateTurno(${i},'ing',this.value)"></div>
+        </div>
+        <div class="bal-col bal-col-egr">
+          <div class="bal-col-title bal-egr-title">↑ Egr <span class="${tEgr>0?'bal-egr-total':''}">${tEgr>0?tEgr+' mL':''}</span></div>
+          <div class="bal-field"><label>Diuresis</label><input type="number" value="${t.egr_diur||''}" placeholder="mL" oninput="updateTurno(${i},'egr_diur',this.value)"></div>
+          <div class="bal-field"><label>SNG</label><input type="number" value="${t.egr_sng||''}" placeholder="mL" oninput="updateTurno(${i},'egr_sng',this.value)"></div>
+          <div class="bal-field"><label>Drenajes</label><input type="number" value="${t.egr_dren||''}" placeholder="mL" oninput="updateTurno(${i},'egr_dren',this.value)"></div>
+          <div class="bal-field"><label>MF</label><input type="number" value="${t.egr_mf||''}" placeholder="mL" oninput="updateTurno(${i},'egr_mf',this.value)"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
   return `
   <div class="section">
     <div class="sec-header">
-      <span class="sec-title">Balances hídricos</span>
-      <button class="btn btn-gn" style="font-size:.55rem;padding:.2rem .45rem" onclick="addBalance()">+ Turno</button>
+      <span class="sec-title">Balance del día</span>
+      <span class="bal-result ${dayCls}" style="font-size:.72rem">${(dayBal>0?'+':'')+Math.round(dayBal)} mL total</span>
     </div>
     <div class="sec-body">
-      ${bals.length===0
-        ? '<div style="font-size:.65rem;color:var(--tx2)">Sin turnos. Agregá uno con el botón.</div>'
-        : `<div id="bal-body">${bals.map((b,i)=>renderBalanceRow(b,i)).join('')}</div>`}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem">${turnoCols}</div>
     </div>
-  </div>`;
+  </div>
+
+  <div class="section">
+    <div class="sec-header">
+      <span class="sec-title">Balance 24 hs</span>
+      <button class="btn btn-am" style="font-size:.55rem;padding:.2rem .45rem" onclick="saveBal24Snapshot()">📷 Guardar</button>
+    </div>
+    <div class="sec-body">
+      <div style="font-size:.62rem;color:var(--tx2);margin-bottom:.4rem">Valores de las últimas 24 hs (carga manual).</div>
+      <div class="bal-card">
+        <div class="bal-card-header">
+          <span style="font-weight:700;font-size:.72rem;color:var(--tx);flex:1">Total 24 hs</span>
+          <span id="bal-24-res" class="bal-result ${cls24}">${(bal24>0?'+':'')+Math.round(bal24)} mL</span>
+        </div>
+        <div class="bal-card-body">
+          <div class="bal-col bal-col-ing">
+            <div class="bal-col-title bal-ing-title">↓ Ingresos</div>
+            <div class="bal-field"><label>Total</label><input type="number" value="${b24.ing||''}" placeholder="mL" oninput="updateBal24('ing',this.value)"></div>
+          </div>
+          <div class="bal-col bal-col-egr">
+            <div class="bal-col-title bal-egr-title">↑ Egresos <span class="${egr24>0?'bal-egr-total':''}">${egr24>0?egr24+' mL':''}</span></div>
+            <div class="bal-field"><label>Diuresis</label><input type="number" value="${b24.egr_diur||''}" placeholder="mL" oninput="updateBal24('egr_diur',this.value)"></div>
+            <div class="bal-field"><label>SNG</label><input type="number" value="${b24.egr_sng||''}" placeholder="mL" oninput="updateBal24('egr_sng',this.value)"></div>
+            <div class="bal-field"><label>Drenajes</label><input type="number" value="${b24.egr_dren||''}" placeholder="mL" oninput="updateBal24('egr_dren',this.value)"></div>
+            <div class="bal-field"><label>MF</label><input type="number" value="${b24.egr_mf||''}" placeholder="mL" oninput="updateBal24('egr_mf',this.value)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  ${renderBal24History(p)}`;
 }
 
-function renderBalanceRow(b,i){
-  const totalEgr = calcTotalEgr(b);
-  const ing = parseFloat(b.ing)||0;
-  const bal = ing - totalEgr;
-  const cls = bal>0?'bal-pos':bal<0?'bal-neg':'bal-zero';
-  const sign = bal>0?'+':'';
-  const totalEgrCls = totalEgr>0?'bal-egr-total':'';
-  return `<div class="bal-card">
-    <div class="bal-card-header">
-      <input class="bal-label-inp" value="${escHtml(b.label||'')}" placeholder="Turno / Fecha (ej: 23/4 · 14–22 h)" oninput="updateBalance(${i},'label',this.value)">
-      <span id="bal-res-${i}" class="bal-result ${cls}">${sign}${Math.round(bal)} mL</span>
-      <button class="del" onclick="removeBalance(${i})">✕</button>
-    </div>
-    <div class="bal-card-body">
-      <div class="bal-col bal-col-ing">
-        <div class="bal-col-title bal-ing-title">↓ Ingresos</div>
-        <div class="bal-field"><label>Total</label><input type="number" value="${b.ing||''}" placeholder="mL" oninput="updateBalance(${i},'ing',this.value);refreshBalRow(${i},this)"></div>
-      </div>
-      <div class="bal-col bal-col-egr">
-        <div class="bal-col-title bal-egr-title">↑ Egresos <span class="${totalEgrCls}">${totalEgr>0?totalEgr+' mL':''}</span></div>
-        <div class="bal-field"><label>Diuresis</label><input type="number" value="${b.egr_diur||''}" placeholder="mL" oninput="updateBalance(${i},'egr_diur',this.value);refreshBalRow(${i},this)"></div>
-        <div class="bal-field"><label>SNG</label><input type="number" value="${b.egr_sng||''}" placeholder="mL" oninput="updateBalance(${i},'egr_sng',this.value);refreshBalRow(${i},this)"></div>
-        <div class="bal-field"><label>Drenajes</label><input type="number" value="${b.egr_dren||''}" placeholder="mL" oninput="updateBalance(${i},'egr_dren',this.value);refreshBalRow(${i},this)"></div>
-        <div class="bal-field"><label>MF</label><input type="number" value="${b.egr_mf||''}" placeholder="mL" oninput="updateBalance(${i},'egr_mf',this.value);refreshBalRow(${i},this)"></div>
-      </div>
-    </div>
-  </div>`;
-}
+
 
 // ─── INFUSIONES ───────────────────────────────
 function renderInfusionesTab(p){
@@ -1228,16 +1434,21 @@ function flushInputs(){
 
   // Balances
   if(activeTab==='balances'){
-    document.querySelectorAll('#tabContent #bal-body .bal-card').forEach((card,i)=>{
-      if(!p.balances[i]) return;
-      const label = card.querySelector('.bal-label-inp');
-      if(label) p.balances[i].label = label.value;
-      card.querySelectorAll('.bal-field input').forEach(inp=>{
-        // Extract field name directly from oninput attribute: updateBalance(i,'field',...)
-        const onip = inp.getAttribute('oninput')||'';
-        const m = onip.match(/updateBalance\(\d+,'([^']+)'/);
-        if(m) p.balances[i][m[1]] = inp.value;
-      });
+    // Turnos del día
+    document.querySelectorAll('#tabContent .bal-card').forEach((card,i)=>{
+      const onip = card.querySelector('.bal-field input')?.getAttribute('oninput')||'';
+      if(onip.includes('updateTurno') && p.bal_turnos && p.bal_turnos[i]){
+        card.querySelectorAll('.bal-field input').forEach(inp=>{
+          const m = inp.getAttribute('oninput')?.match(/updateTurno\(\d+,'([^']+)'/);
+          if(m) p.bal_turnos[i][m[1]] = inp.value;
+        });
+      }
+      if(onip.includes('updateBal24') && p.bal_24){
+        card.querySelectorAll('.bal-field input').forEach(inp=>{
+          const m = inp.getAttribute('oninput')?.match(/updateBal24\('([^']+)'/);
+          if(m) p.bal_24[m[1]] = inp.value;
+        });
+      }
     });
   }
 
@@ -1328,6 +1539,157 @@ function removeIndicacion(i){
 function addLabExtra(){ flushInputs(); const p=getPatient(); if(!p) return; p.lab_extras=p.lab_extras||[]; p.lab_extras.push({nombre:'',valor:'',unidad:''}); renderEditor(); }
 function updateLabExtra(i,field,val){ const p=getPatient(); if(!p) return; p.lab_extras=p.lab_extras||[]; p.lab_extras[i][field]=val; saveData(); }
 function removeLabExtra(i){ flushInputs(); const p=getPatient(); if(!p) return; p.lab_extras.splice(i,1); renderEditor(); }
+
+function updateTurno(i, field, val){
+  const p=getPatient(); if(!p) return;
+  if(!p.bal_turnos) p.bal_turnos=[
+    {label:'6-14 h',ing:'',egr_diur:'',egr_sng:'',egr_dren:'',egr_mf:''},
+    {label:'14-22 h',ing:'',egr_diur:'',egr_sng:'',egr_dren:'',egr_mf:''},
+    {label:'22-6 h',ing:'',egr_diur:'',egr_sng:'',egr_dren:'',egr_mf:''},
+  ];
+  p.bal_turnos[i][field] = val;
+  // Live update turno result badge
+  const t = p.bal_turnos[i];
+  const tEgr = calcTotalEgr(t);
+  const tBal = (parseFloat(t.ing)||0) - tEgr;
+  const el = document.getElementById('btr-'+i);
+  if(el){
+    el.className = 'bal-result '+(tBal>0?'bal-pos':tBal<0?'bal-neg':'bal-zero');
+    el.textContent = (tBal>0?'+':'')+Math.round(tBal)+' mL';
+  }
+  // Update day total in header
+  const turnos = p.bal_turnos;
+  const dayBal = turnos.reduce((s,t)=>(parseFloat(t.ing)||0)-calcTotalEgr(t)+s,0);
+  // Egr title update
+  const card = document.getElementById('btr-'+i)?.closest('.bal-card');
+  if(card){
+    const egrTitle = card.querySelector('.bal-egr-title span');
+    if(egrTitle){ egrTitle.textContent=tEgr>0?tEgr+' mL':''; egrTitle.className=tEgr>0?'bal-egr-total':''; }
+  }
+  saveData();
+}
+
+function updateBal24(field, val){
+  const p=getPatient(); if(!p) return;
+  if(!p.bal_24) p.bal_24={ing:'',egr_diur:'',egr_sng:'',egr_dren:'',egr_mf:''};
+  p.bal_24[field] = val;
+  const b = p.bal_24;
+  const egr = calcTotalEgr(b);
+  const bal = (parseFloat(b.ing)||0) - egr;
+  const el = document.getElementById('bal-24-res');
+  if(el){
+    el.className = 'bal-result '+(bal>0?'bal-pos':bal<0?'bal-neg':'bal-zero');
+    el.textContent = (bal>0?'+':'')+Math.round(bal)+' mL';
+  }
+  saveData();
+}
+
+function saveBal24Snapshot(){
+  flushInputs();
+  const p=getPatient(); if(!p) return;
+  const today = new Date().toISOString().slice(0,10);
+  const label = prompt('Etiqueta para este balance (opcional):', today);
+  if(label===null) return;
+  p.bal_history = p.bal_history||[];
+  p.bal_history.unshift({
+    date: today,
+    label: label||today,
+    bal_24: JSON.parse(JSON.stringify(p.bal_24||{})),
+    bal_turnos: JSON.parse(JSON.stringify(p.bal_turnos||[])),
+  });
+  saveData();
+  renderEditor();
+  toast('Balance guardado ✓');
+}
+
+function deleteBal24Snapshot(i){
+  const p=getPatient(); if(!p) return;
+  if(!confirm('¿Eliminar este balance?')) return;
+  p.bal_history.splice(i,1);
+  saveData();
+  renderEditor();
+}
+
+
+function renderBal24History(p){
+  const hist = p.bal_history||[];
+  if(!hist.length) return `
+  <div class="section"><div class="sec-header"><span class="sec-title">Historial 24 hs</span></div>
+  <div class="sec-body" style="font-size:.65rem;color:var(--tx2)">Sin balances guardados. Completá el balance de 24 hs y tocá 📷 Guardar.</div></div>`;
+
+  const rows = hist.map((h,i)=>{
+    const b = h.bal_24||{};
+    const egr = calcTotalEgr(b);
+    const bal = (parseFloat(b.ing)||0)-egr;
+    const cls = bal>0?'bpos':bal<0?'bneg':'bz';
+    const det = [
+      b.egr_diur?'Diur: '+b.egr_diur:'',
+      b.egr_sng?'SNG: '+b.egr_sng:'',
+      b.egr_dren?'Dren: '+b.egr_dren:'',
+      b.egr_mf?'MF: '+b.egr_mf:'',
+    ].filter(Boolean).join(' · ');
+    return `<tr>
+      <td style="font-weight:600">${escHtml(h.label||h.date)}</td>
+      <td>${b.ing||'—'}</td>
+      <td style="font-size:.6rem;color:var(--tx2)">${det||'—'}</td>
+      <td style="font-weight:700">${egr||'—'}</td>
+      <td class="${cls}" style="font-weight:700">${(bal>0?'+':'')+Math.round(bal)} mL</td>
+      <td><button class="lhist-btn lhist-del" onclick="deleteBal24Snapshot(${i})">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="section">
+    <div class="sec-header"><span class="sec-title">Historial 24 hs</span></div>
+    <div class="sec-body" style="overflow-x:auto">
+      <table class="bal-t" style="font-size:.67rem">
+        <thead><tr><th>Fecha</th><th>Ing</th><th>Egresos</th><th>Egr ∑</th><th>Balance</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+function refreshBalRow(i,input){
+  const p = getPatient(); if(!p) return;
+  const b = p.balances[i]; if(!b) return;
+  const totalEgr = calcTotalEgr(b);
+  const bal = (parseFloat(b.ing)||0) - totalEgr;
+  const cls = bal>0?'bal-pos':bal<0?'bal-neg':'bal-zero';
+  const el = document.getElementById('bal-res-'+i);
+  if(el){ el.className='bal-result '+cls; el.textContent=(bal>0?'+':'')+Math.round(bal)+' mL'; }
+  const card = input ? input.closest('.bal-card') : null;
+  if(card){
+    const titleSpan = card.querySelector('.bal-egr-title span');
+    if(titleSpan){ titleSpan.textContent=totalEgr>0?totalEgr+' mL':''; titleSpan.className=totalEgr>0?'bal-egr-total':''; }
+  }
+}
+
+function addInfusion(){ flushInputs(); const p=getPatient(); if(!p) return; p.infusiones=p.infusiones||[]; p.infusiones.push({sol:'',agr:'',got:''}); renderEditor(); }
+function updateInfusion(i,field,val){ const p=getPatient(); if(!p) return; p.infusiones[i][field]=val; saveData(); }
+function removeInfusion(i){ flushInputs(); const p=getPatient(); if(!p) return; p.infusiones.splice(i,1); renderEditor(); }
+
+function addATB(){ flushInputs(); const p=getPatient(); if(!p) return; p.atb=p.atb||[]; p.atb.push({name:'',day:'',type:'abxd'}); renderEditor(); }
+function updateATB(i,field,val){ const p=getPatient(); if(!p) return; p.atb[i][field]=val; saveData(); }
+function removeATB(i){ flushInputs(); const p=getPatient(); if(!p) return; p.atb.splice(i,1); renderEditor(); }
+
+function addPend(){ flushInputs(); const p=getPatient(); if(!p) return; p.pendientes=p.pendientes||[]; p.pendientes.push({text:'',color:'pp2'}); renderEditor(); }
+function updatePend(i,field,val){ const p=getPatient(); if(!p) return; p.pendientes[i][field]=val; saveData(); }
+function removePend(i){ flushInputs(); const p=getPatient(); if(!p) return; p.pendientes.splice(i,1); renderEditor(); }
+function cyclePendColor(i){
+  flushInputs();
+  const p=getPatient(); if(!p) return;
+  const keys=Object.keys(PEND_COLORS);
+  const cur=p.pendientes[i].color||'pp2';
+  const idx=keys.indexOf(cur);
+  p.pendientes[i].color=keys[(idx+1)%keys.length];
+  renderEditor();
+}
+
+function attachListeners(p){
+  // Add timeline button binding
+  const addTlBtn = document.querySelector('[onclick="addListItem(\'timeline\')"]');
+  // already bound via onclick attr — no extra needed
+}
 
 function addBalance(){ flushInputs(); const p=getPatient(); if(!p) return; p.balances=p.balances||[]; p.balances.push({label:'',ing:'',egr:''}); renderEditor(); }
 function updateBalance(i,field,val){ const p=getPatient(); if(!p) return; p.balances[i][field]=val; saveData(); }
@@ -1745,47 +2107,44 @@ function exportHTML(){
             ${p.atb.map(a=>`<div class="abx"><span class="abxn">${escHtml(a.name||'')}</span><span class="${escHtml(a.type||'abxd')}">${escHtml(a.day||'')}</span></div>`).join('')}
           </div></div>`:''}
 
-          ${p.balances&&p.balances.length?`
-          <div class="card"><div class="ct">Balances hídricos</div><div class="cb">
-            <table class="bal-t">
-              <tr><th>Turno</th><th>Ing</th><th>Egresos</th><th>Egr ∑</th><th>Balance</th></tr>
-              ${(()=>{
-                let totIng=0, totEgr=0, totBal=0;
-                const rows = p.balances.map(b=>{
-                  const diur=parseFloat(b.egr_diur)||0, sng=parseFloat(b.egr_sng)||0,
-                        dren=parseFloat(b.egr_dren)||0, mf=parseFloat(b.egr_mf)||0,
-                        otros=parseFloat(b.egr_otros)||0, leg=parseFloat(b.egr)||0;
-                  const egr=diur+sng+dren+mf+otros+leg;
-                  const ing=parseFloat(b.ing)||0;
-                  const bal=ing-egr;
-                  totIng+=ing; totEgr+=egr; totBal+=bal;
-                  const cls=bal>0?'bpos':bal<0?'bneg':'bz';
-                  // Egr detail: only show fields with values
-                  const det=[
-                    diur?'Diur: '+diur:'', sng?'SNG: '+sng:'',
-                    dren?'Dren: '+dren:'', mf?'MF: '+mf:'',
-                    otros?'Otros: '+otros:''
-                  ].filter(Boolean).join(' · ');
-                  return `<tr>
-                    <td>${escHtml(b.label||'')}</td>
-                    <td>${ing||'—'}</td>
-                    <td style="font-size:.6rem;color:var(--tx2)">${det||'—'}</td>
-                    <td style="font-weight:700">${egr||'—'}</td>
-                    <td class="${cls}" style="font-weight:700">${(bal>0?'+':'')+Math.round(bal)} mL</td>
-                  </tr>`;
-                }).join('');
-                const totCls=totBal>0?'bpos':totBal<0?'bneg':'bz';
-                const totRow=p.balances.length>1?`<tr style="border-top:2px solid var(--brd)">
-                  <td style="font-family:var(--mono);font-size:.56rem;color:var(--mu);font-weight:700">TOTAL</td>
-                  <td style="font-weight:700">${totIng||'—'}</td>
-                  <td></td>
-                  <td style="font-weight:700">${totEgr||'—'}</td>
-                  <td class="${totCls}" style="font-weight:700">${(totBal>0?'+':'')+Math.round(totBal)} mL</td>
-                </tr>`:'';
-                return rows+totRow;
-              })()}
-            </table>
-          </div></div>`:''}
+          ${(()=>{
+            const turnos = p.bal_turnos||[];
+            const b24 = p.bal_24||{};
+            const hist = p.bal_history||[];
+            const hasTurnos = turnos.some(t=>t.ing||calcTotalEgr(t));
+            const has24 = b24.ing||calcTotalEgr(b24);
+            const hasHist = hist.length>0;
+            if(!hasTurnos&&!has24&&!hasHist) return '';
+            const dayIng=turnos.reduce((s,t)=>s+(parseFloat(t.ing)||0),0);
+            const dayEgr=turnos.reduce((s,t)=>s+calcTotalEgr(t),0);
+            const dayBal=dayIng-dayEgr;
+            const dayCls=dayBal>0?'bpos':dayBal<0?'bneg':'bz';
+            const turnoRows=turnos.filter(t=>t.ing||calcTotalEgr(t)).map(t=>{
+              const egr=calcTotalEgr(t),ing=parseFloat(t.ing)||0,bal=ing-egr;
+              const det=[t.egr_diur?'Diur:'+t.egr_diur:'',t.egr_sng?'SNG:'+t.egr_sng:'',
+                t.egr_dren?'Dren:'+t.egr_dren:'',t.egr_mf?'MF:'+t.egr_mf:''].filter(Boolean).join(' · ');
+              const cls=bal>0?'bpos':bal<0?'bneg':'bz';
+              return `<tr><td>${escHtml(t.label)}</td><td>${ing||'—'}</td><td style="font-size:.6rem;color:var(--tx2)">${det||'—'}</td><td style="font-weight:700">${egr||'—'}</td><td class="${cls}" style="font-weight:700">${(bal>0?'+':'')+Math.round(bal)} mL</td></tr>`;
+            }).join('');
+            const e24=calcTotalEgr(b24),i24=parseFloat(b24.ing)||0,ba24=i24-e24;
+            const d24=[b24.egr_diur?'Diur:'+b24.egr_diur:'',b24.egr_sng?'SNG:'+b24.egr_sng:'',
+              b24.egr_dren?'Dren:'+b24.egr_dren:'',b24.egr_mf?'MF:'+b24.egr_mf:''].filter(Boolean).join(' · ');
+            const c24=ba24>0?'bpos':ba24<0?'bneg':'bz';
+            const histRows=hist.map(h=>{
+              const b=h.bal_24||{},egr=calcTotalEgr(b),ing=parseFloat(b.ing)||0,bal=ing-egr;
+              const det=[b.egr_diur?'Diur:'+b.egr_diur:'',b.egr_sng?'SNG:'+b.egr_sng:'',
+                b.egr_dren?'Dren:'+b.egr_dren:'',b.egr_mf?'MF:'+b.egr_mf:''].filter(Boolean).join(' · ');
+              const cls=bal>0?'bpos':bal<0?'bneg':'bz';
+              return `<tr><td style="font-weight:600">${escHtml(h.label||h.date)}</td><td>${ing||'—'}</td><td style="font-size:.6rem;color:var(--tx2)">${det||'—'}</td><td style="font-weight:700">${egr||'—'}</td><td class="${cls}" style="font-weight:700">${(bal>0?'+':'')+Math.round(bal)} mL</td></tr>`;
+            }).join('');
+            const hdr = '<tr><th>Período</th><th>Ing</th><th>Egresos</th><th>Egr ∑</th><th>Balance</th></tr>';
+            return `<div class="card"><div class="ct">Balances hídricos</div><div class="cb">
+              ${hasTurnos?`<div style="font-family:var(--mono);font-size:.48rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);margin-bottom:.25rem">Turnos del día — <span class="${dayCls}" style="font-weight:700">${(dayBal>0?'+':'')+Math.round(dayBal)} mL</span></div><table class="bal-t">${hdr}${turnoRows}</table>`:''}
+              ${has24?`<div style="font-family:var(--mono);font-size:.48rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);margin:.45rem 0 .25rem">Balance 24 hs</div><table class="bal-t">${hdr}<tr><td style="font-weight:600">24 hs</td><td>${i24||'—'}</td><td style="font-size:.6rem;color:var(--tx2)">${d24||'—'}</td><td style="font-weight:700">${e24||'—'}</td><td class="${c24}" style="font-weight:700">${(ba24>0?'+':'')+Math.round(ba24)} mL</td></tr></table>`:''}
+              ${hasHist?`<div style="font-family:var(--mono);font-size:.48rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);margin:.45rem 0 .25rem;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===''?'none':''">Historial 24 hs ▼</div><div style="display:none"><table class="bal-t">${hdr}${histRows}</table></div>`:''}
+            </div></div>`;
+          })()}
+
         </div>
 
         <div class="rc">
@@ -2223,5 +2582,129 @@ window.addEventListener('load',()=>{
   }
 });
 </script>
+
+<!-- GitHub Config Modal -->
+<div id="gh-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:var(--sur);border:1px solid var(--brd);border-radius:12px;padding:1.5rem;width:420px;max-width:90vw;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+    <div style="font-weight:700;font-size:.88rem;margin-bottom:.5rem">⚙️ Configuración GitHub</div>
+    <div style="font-size:.68rem;color:var(--tx2);margin-bottom:1rem;line-height:1.6">El token queda guardado solo en tu navegador, nunca se envía a ningún servidor externo.</div>
+    <div style="display:flex;flex-direction:column;gap:.6rem">
+      <div>
+        <label style="font-size:.6rem;font-family:var(--mono);color:var(--tx2);text-transform:uppercase;letter-spacing:.08em">Personal Access Token (classic)</label>
+        <input id="gh-token" type="password" placeholder="ghp_..." style="width:100%;margin-top:.2rem;background:var(--sur2);border:1px solid var(--brd);border-radius:6px;padding:.4rem .6rem;font-size:.72rem;color:var(--tx);outline:none;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:.6rem;font-family:var(--mono);color:var(--tx2);text-transform:uppercase;letter-spacing:.08em">Usuario GitHub</label>
+        <input id="gh-user" type="text" placeholder="ortotanasia2012-svg" style="width:100%;margin-top:.2rem;background:var(--sur2);border:1px solid var(--brd);border-radius:6px;padding:.4rem .6rem;font-size:.72rem;color:var(--tx);outline:none;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:.6rem;font-family:var(--mono);color:var(--tx2);text-transform:uppercase;letter-spacing:.08em">Nombre del repositorio</label>
+        <input id="gh-repo" type="text" placeholder="pase-uti-hrrg" style="width:100%;margin-top:.2rem;background:var(--sur2);border:1px solid var(--brd);border-radius:6px;padding:.4rem .6rem;font-size:.72rem;color:var(--tx);outline:none;box-sizing:border-box">
+      </div>
+    </div>
+    <div style="display:flex;gap:.5rem;margin-top:1.2rem;justify-content:flex-end">
+      <button class="btn btn-mu" onclick="closeGHModal()">Cancelar</button>
+      <button class="btn btn-gn" onclick="saveGHConfig()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- GitHub settings gear -->
+<div style="position:fixed;bottom:1.5rem;left:1.5rem;z-index:500">
+  <button onclick="openGHModal()" style="background:var(--sur2);border:1px solid var(--brd);border-radius:50%;width:36px;height:36px;font-size:1rem;cursor:pointer;color:var(--tx2)" title="Configuración GitHub">⚙️</button>
+</div>
+
+<script>
+function openGHModal(){
+  document.getElementById('gh-modal').style.display='flex';
+  document.getElementById('gh-token').value = localStorage.getItem('gh_token')||'';
+  document.getElementById('gh-user').value  = localStorage.getItem('gh_user')||'';
+  document.getElementById('gh-repo').value  = localStorage.getItem('gh_repo')||'';
+}
+function closeGHModal(){ document.getElementById('gh-modal').style.display='none'; }
+function saveGHConfig(){
+  const token = document.getElementById('gh-token').value.trim();
+  const user  = document.getElementById('gh-user').value.trim();
+  const repo  = document.getElementById('gh-repo').value.trim();
+  if(!token||!user||!repo){ alert('Completá los tres campos.'); return; }
+  localStorage.setItem('gh_token', token);
+  localStorage.setItem('gh_user',  user);
+  localStorage.setItem('gh_repo',  repo);
+  closeGHModal();
+  toast('Configuración guardada ✓');
+}
+
+async function publishToGitHub(){
+  const token = localStorage.getItem('gh_token');
+  const user  = localStorage.getItem('gh_user');
+  const repo  = localStorage.getItem('gh_repo');
+  if(!token||!user||!repo){
+    if(confirm('Configurá primero el token y repositorio. ¿Abrir configuración?'))
+      openGHModal();
+    return;
+  }
+  flushInputs();
+  const btn = document.getElementById('gh-publish-btn');
+  btn.textContent = '⏳ Publicando...';
+  btn.disabled = true;
+  try {
+    // Generate HTML using exportHTML logic
+    const htmlContent = await getExportHTML();
+
+    const apiBase = 'https://api.github.com/repos/'+user+'/'+repo+'/contents/index.html';
+    const headers = {
+      'Authorization': 'Bearer '+token,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json'
+    };
+
+    // Get current file SHA (needed to update existing file)
+    let sha = null;
+    const getRes = await fetch(apiBase, {headers});
+    if(getRes.ok){
+      const data = await getRes.json();
+      sha = data.sha;
+    }
+
+    // Encode content to base64
+    const b64 = btoa(unescape(encodeURIComponent(htmlContent)));
+
+    // Push file
+    const body = {
+      message: 'Pase UTI — '+new Date().toLocaleString('es-AR'),
+      content: b64,
+      ...(sha ? {sha} : {})
+    };
+    const putRes = await fetch(apiBase, {method:'PUT', headers, body:JSON.stringify(body)});
+    if(!putRes.ok){
+      const err = await putRes.json();
+      throw new Error(err.message||'Error al subir');
+    }
+    toast('✅ Publicado en GitHub Pages');
+    btn.textContent = '✅ Publicado';
+    setTimeout(()=>{ btn.textContent='🚀 Publicar'; btn.disabled=false; }, 3000);
+  } catch(err){
+    console.error(err);
+    alert('Error: '+err.message+'\n\nVerificá el token y repositorio en ⚙️');
+    btn.textContent = '🚀 Publicar';
+    btn.disabled = false;
+  }
+}
+
+async function getExportHTML(){
+  return new Promise(resolve=>{
+    const _Blob = window.Blob;
+    window.Blob = function(parts, opts){
+      window.Blob = _Blob;
+      resolve(parts[0]);
+      return new _Blob(parts, opts);
+    };
+    const _click = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function(){ HTMLAnchorElement.prototype.click = _click; };
+    exportHTML();
+  });
+}
+</script>
+
 </body>
 </html>
