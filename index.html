@@ -459,6 +459,137 @@ body{background:var(--bg);color:var(--tx);font-family:var(--sans);min-height:100
           
 
           
+
+          
+  <div class="card" id="curvas-card-p0">
+    <div class="ct" style="display:flex;align-items:center;gap:.5rem;cursor:pointer" onclick="toggleCurvas_p0()">
+      📈 Curvas de tendencia
+      <span id="curvas-arrow-p0" style="font-size:.6rem;color:var(--mu);margin-left:auto">▼ mostrar</span>
+    </div>
+    <div class="cb" id="curvas-body-p0" style="display:none">
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.6rem;align-items:center">
+        <span style="font-size:.6rem;color:var(--mu);font-family:var(--mono)">Parámetro:</span>
+        <select id="curvas-sel-p0" onchange="drawCurva_p0()" style="background:var(--sur2,#f6f9fc);border:1px solid var(--brd,#dde5ef);border-radius:5px;padding:.22rem .38rem;font-size:.66rem;color:var(--tx,#182030);outline:none;max-width:220px"></select>
+      </div>
+      <canvas id="curvas-cv-p0" style="width:100%;display:block"></canvas>
+      <div id="curvas-tbl-p0" style="margin-top:.6rem;overflow-x:auto;font-size:.65rem"></div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var SERIES = [{"label":"Hb (g/dL)","pts":[{"date":"2026-04-26","val":8.8,"isActual":false},{"date":"2026-04-28","val":9.4,"isActual":false},{"date":"2026-04-30","val":8.3,"isActual":false},{"date":"2026-05-01","val":7.4,"isActual":false},{"date":"2026-05-02","val":7.5,"isActual":false},{"date":"2026-05-03","val":7.5,"isActual":false},{"date":"Actual","val":7.5,"isActual":true}]},{"label":"Hcto (%)","pts":[{"date":"2026-04-26","val":26.7,"isActual":false},{"date":"2026-04-28","val":27.5,"isActual":false},{"date":"2026-04-30","val":24.6,"isActual":false},{"date":"2026-05-01","val":22.8,"isActual":false},{"date":"2026-05-02","val":22.8,"isActual":false},{"date":"2026-05-03","val":23.2,"isActual":false},{"date":"Actual","val":23.2,"isActual":true}]},{"label":"GB (×1000)","pts":[{"date":"2026-04-26","val":8.85,"isActual":false},{"date":"2026-04-28","val":12.54,"isActual":false},{"date":"2026-04-30","val":8.3,"isActual":false},{"date":"2026-05-01","val":4.89,"isActual":false},{"date":"2026-05-02","val":6.12,"isActual":false},{"date":"2026-05-03","val":10.65,"isActual":false},{"date":"Actual","val":10.65,"isActual":true}]},{"label":"Plaquetas","pts":[{"date":"2026-04-26","val":114,"isActual":false},{"date":"2026-04-28","val":113,"isActual":false},{"date":"2026-04-30","val":85,"isActual":false},{"date":"2026-05-01","val":87,"isActual":false},{"date":"2026-05-02","val":82,"isActual":false},{"date":"2026-05-03","val":98,"isActual":false},{"date":"Actual","val":98,"isActual":true}]},{"label":"Neutrófilos %","pts":[{"date":"2026-04-26","val":82,"isActual":false},{"date":"2026-04-28","val":74,"isActual":false},{"date":"2026-04-30","val":62,"isActual":false},{"date":"2026-05-01","val":65,"isActual":false},{"date":"2026-05-02","val":82,"isActual":false},{"date":"2026-05-03","val":79,"isActual":false},{"date":"Actual","val":79,"isActual":true}]},{"label":"Linfocitos %","pts":[{"date":"2026-04-26","val":10,"isActual":false},{"date":"2026-04-28","val":12,"isActual":false},{"date":"2026-04-30","val":25,"isActual":false},{"date":"2026-05-01","val":23,"isActual":false},{"date":"2026-05-02","val":10,"isActual":false},{"date":"2026-05-03","val":13,"isActual":false},{"date":"Actual","val":13,"isActual":true}]},{"label":"Cayados %","pts":[{"date":"2026-04-28","val":0,"isActual":false},{"date":"2026-04-30","val":0,"isActual":false}]},{"label":"Glucosa","pts":[{"date":"2026-04-26","val":118.3,"isActual":false},{"date":"2026-04-28","val":115,"isActual":false},{"date":"2026-04-30","val":88.3,"isActual":false},{"date":"2026-05-01","val":119.2,"isActual":false},{"date":"2026-05-02","val":137.7,"isActual":false},{"date":"2026-05-03","val":142,"isActual":false},{"date":"Actual","val":142,"isActual":true}]},{"label":"Urea","pts":[{"date":"2026-04-26","val":46.5,"isActual":false},{"date":"2026-04-28","val":63.7,"isActual":false},{"date":"2026-04-30","val":91.2,"isActual":false},{"date":"2026-05-01","val":110,"isActual":false},{"date":"2026-05-02","val":114,"isActual":false},{"date":"2026-05-03","val":108,"isActual":false},{"date":"Actual","val":108,"isActual":true}]},{"label":"Creatinina","pts":[{"date":"2026-04-26","val":0.75,"isActual":false},{"date":"2026-04-28","val":0.87,"isActual":false},{"date":"2026-04-30","val":0.98,"isActual":false},{"date":"2026-05-01","val":1.41,"isActual":false},{"date":"2026-05-02","val":1.05,"isActual":false},{"date":"2026-05-03","val":0.85,"isActual":false},{"date":"Actual","val":0.85,"isActual":true}]},{"label":"Lactato","pts":[{"date":"2026-04-28","val":10.15,"isActual":false},{"date":"2026-05-02","val":9.02,"isActual":false}]},{"label":"Sodio","pts":[{"date":"2026-04-26","val":138,"isActual":false},{"date":"2026-04-28","val":134,"isActual":false},{"date":"2026-04-30","val":136,"isActual":false},{"date":"2026-05-01","val":137,"isActual":false},{"date":"2026-05-02","val":140,"isActual":false},{"date":"2026-05-03","val":142,"isActual":false},{"date":"Actual","val":142,"isActual":true}]},{"label":"Potasio","pts":[{"date":"2026-04-26","val":4.58,"isActual":false},{"date":"2026-04-28","val":5.2,"isActual":false},{"date":"2026-04-30","val":5.16,"isActual":false},{"date":"2026-05-01","val":4.7,"isActual":false},{"date":"2026-05-02","val":5.67,"isActual":false},{"date":"2026-05-03","val":3.36,"isActual":false},{"date":"Actual","val":3.36,"isActual":true}]},{"label":"Cloro","pts":[{"date":"2026-04-26","val":104,"isActual":false},{"date":"2026-04-28","val":103,"isActual":false},{"date":"2026-04-30","val":102.2,"isActual":false},{"date":"2026-05-01","val":100,"isActual":false},{"date":"2026-05-02","val":104,"isActual":false},{"date":"2026-05-03","val":105,"isActual":false},{"date":"Actual","val":105,"isActual":true}]},{"label":"Calcio","pts":[{"date":"2026-04-26","val":8.03,"isActual":false},{"date":"2026-04-28","val":8.03,"isActual":false},{"date":"2026-05-01","val":8.02,"isActual":false},{"date":"2026-05-02","val":7.23,"isActual":false}]},{"label":"Magnesio","pts":[{"date":"2026-04-26","val":1.7,"isActual":false},{"date":"2026-04-28","val":1.7,"isActual":false},{"date":"2026-05-02","val":1,"isActual":false}]},{"label":"GOT","pts":[{"date":"2026-05-01","val":24,"isActual":false},{"date":"2026-05-02","val":24,"isActual":false}]},{"label":"GPT","pts":[{"date":"2026-05-01","val":28,"isActual":false},{"date":"2026-05-02","val":28,"isActual":false}]},{"label":"F.ALC","pts":[{"date":"2026-05-01","val":94,"isActual":false},{"date":"2026-05-02","val":94,"isActual":false}]},{"label":"Bili Total","pts":[{"date":"2026-05-01","val":0.42,"isActual":false},{"date":"2026-05-02","val":0.42,"isActual":false}]},{"label":"Albúmina","pts":[{"date":"2026-05-01","val":2.5,"isActual":false},{"date":"2026-05-02","val":2.5,"isActual":false}]},{"label":"PAFI","pts":[{"date":"29/4 7am","val":156,"isActual":false},{"date":"30/4 7","val":77,"isActual":false},{"date":"30/4 22","val":381,"isActual":false},{"date":"1/5 7","val":467,"isActual":false},{"date":"2/5 7","val":306,"isActual":false},{"date":"2/5 19","val":370,"isActual":false},{"date":"3/5 8","val":156,"isActual":false}]},{"label":"pH","pts":[{"date":"29/4 7am","val":7.47,"isActual":false},{"date":"30/4 7","val":7.39,"isActual":false},{"date":"30/4 22","val":7.36,"isActual":false},{"date":"1/5 7","val":7.4,"isActual":false},{"date":"2/5 7","val":7.45,"isActual":false},{"date":"2/5 19","val":7.49,"isActual":false},{"date":"3/5 8","val":7.47,"isActual":false}]},{"label":"pCO₂","pts":[{"date":"29/4 7am","val":35.3,"isActual":false},{"date":"30/4 7","val":41.3,"isActual":false},{"date":"30/4 22","val":43.4,"isActual":false},{"date":"1/5 7","val":41.7,"isActual":false},{"date":"2/5 7","val":38.6,"isActual":false},{"date":"2/5 19","val":31.9,"isActual":false},{"date":"3/5 8","val":35.3,"isActual":false}]},{"label":"pO₂","pts":[{"date":"29/4 7am","val":78,"isActual":false},{"date":"30/4 7","val":38.5,"isActual":false},{"date":"30/4 22","val":190,"isActual":false},{"date":"1/5 7","val":233,"isActual":false},{"date":"2/5 7","val":153,"isActual":false},{"date":"2/5 19","val":185,"isActual":false},{"date":"3/5 8","val":78,"isActual":false}]},{"label":"HCO₃","pts":[{"date":"29/4 7am","val":25.1,"isActual":false},{"date":"30/4 7","val":25,"isActual":false},{"date":"30/4 22","val":24.3,"isActual":false},{"date":"1/5 7","val":25.6,"isActual":false},{"date":"2/5 7","val":26.4,"isActual":false},{"date":"2/5 19","val":24.2,"isActual":false},{"date":"3/5 8","val":25.1,"isActual":false}]},{"label":"EB","pts":[{"date":"29/4 7am","val":1.5,"isActual":false},{"date":"30/4 7","val":0.1,"isActual":false},{"date":"30/4 22","val":-1,"isActual":false},{"date":"1/5 7","val":0.8,"isActual":false},{"date":"2/5 7","val":2.3,"isActual":false},{"date":"2/5 19","val":1.1,"isActual":false},{"date":"3/5 8","val":1.5,"isActual":false}]},{"label":"SatO₂","pts":[{"date":"29/4 7am","val":97.3,"isActual":false},{"date":"30/4 7","val":99,"isActual":false},{"date":"30/4 22","val":99.5,"isActual":false},{"date":"1/5 7","val":99,"isActual":false},{"date":"2/5 7","val":99.3,"isActual":false},{"date":"2/5 19","val":99.5,"isActual":false},{"date":"3/5 8","val":97.3,"isActual":false}]},{"label":"FiO₂","pts":[{"date":"29/4 7am","val":50,"isActual":false},{"date":"30/4 7","val":50,"isActual":false},{"date":"30/4 22","val":50,"isActual":false},{"date":"1/5 7","val":50,"isActual":false},{"date":"2/5 7","val":50,"isActual":false},{"date":"2/5 19","val":50,"isActual":false},{"date":"3/5 8","val":50,"isActual":false}]},{"label":"Na⁺","pts":[{"date":"29/4 7am","val":135,"isActual":false},{"date":"30/4 7","val":136,"isActual":false},{"date":"1/5 7","val":134,"isActual":false},{"date":"2/5 7","val":140,"isActual":false},{"date":"2/5 19","val":136,"isActual":false},{"date":"3/5 8","val":142,"isActual":false},{"date":"3/5 18","val":138.9,"isActual":false}]},{"label":"K⁺","pts":[{"date":"29/4 7am","val":5.79,"isActual":false},{"date":"30/4 7","val":5.16,"isActual":false},{"date":"1/5 7","val":4.67,"isActual":false},{"date":"2/5 7","val":5.67,"isActual":false},{"date":"2/5 19","val":3.12,"isActual":false},{"date":"3/5 8","val":3.36,"isActual":false},{"date":"3/5 18","val":5.2,"isActual":false}]},{"label":"Ingresos (mL)","pts":[{"date":"2026-04-26","val":2172,"isActual":false},{"date":"2026-04-27","val":3045,"isActual":false},{"date":"2026-04-28","val":4691,"isActual":false},{"date":"2026-04-29","val":3264,"isActual":false},{"date":"2026-05-02","val":2348,"isActual":false},{"date":"Actual","val":2348,"isActual":true}]},{"label":"Diuresis (mL)","pts":[{"date":"2026-04-26","val":800,"isActual":false},{"date":"2026-04-27","val":1850,"isActual":false},{"date":"2026-04-28","val":2850,"isActual":false},{"date":"2026-04-29","val":2100,"isActual":false},{"date":"2026-05-02","val":1950,"isActual":false},{"date":"Actual","val":1950,"isActual":true}]},{"label":"Balance (mL)","pts":[{"date":"2026-04-26","val":1372,"isActual":false},{"date":"2026-04-27","val":1195,"isActual":false},{"date":"2026-04-28","val":1841,"isActual":false},{"date":"2026-04-29","val":-1186,"isActual":false},{"date":"2026-05-02","val":398,"isActual":false},{"date":"Actual","val":398,"isActual":true}]}];
+    var uid = 'p0';
+    var sel = document.getElementById('curvas-sel-'+uid);
+    SERIES.forEach(function(s,i){
+      var o = document.createElement('option');
+      o.value = i; o.textContent = s.label; sel.appendChild(o);
+    });
+
+    window['toggleCurvas_'+uid] = function(){
+      var body = document.getElementById('curvas-body-'+uid);
+      var arrow = document.getElementById('curvas-arrow-'+uid);
+      var open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      arrow.textContent = open ? '▼ mostrar' : '▲ ocultar';
+      if(!open) window['drawCurva_'+uid]();
+    };
+
+    window['drawCurva_'+uid] = function(){
+      var idx = parseInt(sel.value)||0;
+      var serie = SERIES[idx];
+      if(!serie||serie.pts.length<2) return;
+      var pts = serie.pts;
+      var canvas = document.getElementById('curvas-cv-'+uid);
+      var tblEl  = document.getElementById('curvas-tbl-'+uid);
+      var dpr = window.devicePixelRatio||1;
+      var W = canvas.parentElement.clientWidth-2;
+      var H = Math.min(280, Math.round(W*0.4));
+      canvas.width = W*dpr; canvas.height = H*dpr;
+      canvas.style.width = W+'px'; canvas.style.height = H+'px';
+      var ctx = canvas.getContext('2d');
+      ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+
+      var PAD = {t:24,r:16,b:52,l:54};
+      var cW=W-PAD.l-PAD.r, cH=H-PAD.t-PAD.b;
+      var vals = pts.map(function(p){return p.val;});
+      var minV=Math.min.apply(null,vals), maxV=Math.max.apply(null,vals);
+      var pad=(maxV-minV||Math.abs(maxV)||1)*0.18;
+      var yMin=minV-pad, yMax=maxV+pad;
+      function xOf(i){return PAD.l+(pts.length>1?i/(pts.length-1):0.5)*cW;}
+      function yOf(v){return PAD.t+cH-((v-yMin)/(yMax-yMin))*cH;}
+
+      var st = getComputedStyle(document.documentElement);
+      function cv(name,fb){var v=st.getPropertyValue(name).trim();return v||fb;}
+      var C = {ac:cv('--ac','#1560a8'),gn:cv('--gn','#1a7540'),tx2:cv('--tx2','#445570'),brd:cv('--brd','#dde5ef'),am:cv('--am','#b06000')};
+
+      // Grid
+      for(var gi=0;gi<=5;gi++){
+        var gy=PAD.t+(gi/5)*cH, gv=yMax-(gi/5)*(yMax-yMin);
+        ctx.strokeStyle=C.brd; ctx.lineWidth=0.5;
+        ctx.beginPath(); ctx.moveTo(PAD.l,gy); ctx.lineTo(PAD.l+cW,gy); ctx.stroke();
+        ctx.fillStyle=C.tx2; ctx.font='10px monospace'; ctx.textAlign='right';
+        ctx.fillText(Math.abs(gv)<10?gv.toFixed(1):Math.round(gv), PAD.l-5, gy+3.5);
+      }
+
+      // Trend line
+      var n=pts.length;
+      var sx=0,sy=0,sxy=0,sx2=0;
+      for(var ti=0;ti<n;ti++){sx+=ti;sy+=pts[ti].val;sxy+=ti*pts[ti].val;sx2+=ti*ti;}
+      var slope=(n*sxy-sx*sy)/(n*sx2-sx*sx||1);
+      var inter=(sy-slope*sx)/n;
+      ctx.strokeStyle=C.tx2+'88'; ctx.lineWidth=1.2; ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(xOf(0),yOf(inter)); ctx.lineTo(xOf(n-1),yOf(slope*(n-1)+inter)); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Area fill
+      ctx.beginPath(); ctx.moveTo(xOf(0),yOf(pts[0].val));
+      for(var ai=1;ai<n;ai++) ctx.lineTo(xOf(ai),yOf(pts[ai].val));
+      ctx.lineTo(xOf(n-1),PAD.t+cH); ctx.lineTo(xOf(0),PAD.t+cH); ctx.closePath();
+      ctx.fillStyle=C.ac+'28'; ctx.fill();
+
+      // Line
+      ctx.strokeStyle=C.ac; ctx.lineWidth=2.5; ctx.lineJoin='round';
+      ctx.beginPath();
+      for(var li=0;li<n;li++){ if(li===0) ctx.moveTo(xOf(0),yOf(pts[0].val)); else ctx.lineTo(xOf(li),yOf(pts[li].val)); }
+      ctx.stroke();
+
+      // Points + labels
+      for(var pi=0;pi<n;pi++){
+        var x=xOf(pi),y=yOf(pts[pi].val),col=pts[pi].isActual?C.gn:C.ac;
+        ctx.beginPath(); ctx.arc(x,y,pts[pi].isActual?6:4,0,Math.PI*2);
+        ctx.fillStyle=col; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.fill(); ctx.stroke();
+        ctx.fillStyle=col; ctx.font='bold 10px monospace'; ctx.textAlign='center';
+        ctx.fillText(Math.abs(pts[pi].val)<10?pts[pi].val.toFixed(1):Math.round(pts[pi].val),x,y-10);
+      }
+
+      // X labels
+      ctx.fillStyle=C.tx2; ctx.font='10px sans-serif'; ctx.textAlign='center';
+      for(var xi=0;xi<n;xi++){
+        ctx.save(); ctx.translate(xOf(xi),PAD.t+cH+14); ctx.rotate(-Math.PI/6);
+        ctx.fillText(pts[xi].date,0,0); ctx.restore();
+      }
+
+      // Title + trend arrow
+      var trendUp=slope>0.05, trendDn=slope<-0.05;
+      ctx.textAlign='left'; ctx.font='11px sans-serif'; ctx.fillStyle=C.tx2;
+      ctx.fillText(serie.label, PAD.l, 14);
+      ctx.fillStyle=trendUp?C.am:trendDn?C.gn:C.tx2;
+      ctx.font='bold 12px sans-serif';
+      ctx.fillText(trendUp?' ↑ sube':trendDn?' ↓ baja':' → estable', PAD.l+ctx.measureText(serie.label).width+2, 14);
+
+      // Table
+      var dir=trendUp?'↑ sube':trendDn?'↓ baja':'→ estable';
+      var rows='';
+      for(var ri=0;ri<pts.length;ri++){
+        var diff=ri===0?null:pts[ri].val-pts[ri-1].val;
+        var dStr=diff===null?'—':(diff>0?'+':'')+diff.toFixed(1);
+        var dCol=diff===null?'':diff>0?'color:'+C.am:'color:'+C.gn;
+        rows+='<tr style="border-bottom:1px solid #eee"><td style="padding:.15rem .4rem;'+(pts[ri].isActual?'font-weight:700;color:'+C.gn:'')+'">'+pts[ri].date+(pts[ri].isActual?' ●':'')+'</td><td style="font-family:monospace;font-weight:700;text-align:right;padding:.15rem .4rem">'+(Math.abs(pts[ri].val)<10?pts[ri].val.toFixed(1):Math.round(pts[ri].val))+'</td><td style="font-family:monospace;text-align:right;padding:.15rem .4rem;'+dCol+'">'+dStr+'</td></tr>';
+      }
+      tblEl.innerHTML='<div style="font-size:.6rem;color:'+C.tx2+';font-family:monospace;margin-bottom:.3rem">Tendencia: <strong>'+dir+'</strong> &nbsp;·&nbsp; Mín: <strong>'+Math.min.apply(null,vals).toFixed(1)+'</strong> &nbsp;·&nbsp; Máx: <strong>'+Math.max.apply(null,vals).toFixed(1)+'</strong> &nbsp;·&nbsp; Último: <strong>'+vals[vals.length-1].toFixed(1)+'</strong></div><table style="border-collapse:collapse;font-size:.65rem;width:100%"><thead><tr><th style="text-align:left;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Fecha</th><th style="text-align:right;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Valor</th><th style="text-align:right;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Δ</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    };
+  })();
+  </script>
         </div>
       </div>
     </div><div class="panel" id="panel-1">
@@ -746,6 +877,137 @@ body{background:var(--bg);color:var(--tx);font-family:var(--sans);min-height:100
           
 
           
+
+          
+  <div class="card" id="curvas-card-p1">
+    <div class="ct" style="display:flex;align-items:center;gap:.5rem;cursor:pointer" onclick="toggleCurvas_p1()">
+      📈 Curvas de tendencia
+      <span id="curvas-arrow-p1" style="font-size:.6rem;color:var(--mu);margin-left:auto">▼ mostrar</span>
+    </div>
+    <div class="cb" id="curvas-body-p1" style="display:none">
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.6rem;align-items:center">
+        <span style="font-size:.6rem;color:var(--mu);font-family:var(--mono)">Parámetro:</span>
+        <select id="curvas-sel-p1" onchange="drawCurva_p1()" style="background:var(--sur2,#f6f9fc);border:1px solid var(--brd,#dde5ef);border-radius:5px;padding:.22rem .38rem;font-size:.66rem;color:var(--tx,#182030);outline:none;max-width:220px"></select>
+      </div>
+      <canvas id="curvas-cv-p1" style="width:100%;display:block"></canvas>
+      <div id="curvas-tbl-p1" style="margin-top:.6rem;overflow-x:auto;font-size:.65rem"></div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var SERIES = [{"label":"Hb (g/dL)","pts":[{"date":"2026-04-30","val":15.5,"isActual":false},{"date":"2026-05-01","val":14.4,"isActual":false},{"date":"2026-05-02","val":13.4,"isActual":false},{"date":"2026-05-03","val":12.8,"isActual":false},{"date":"Actual","val":12.8,"isActual":true}]},{"label":"Hcto (%)","pts":[{"date":"2026-04-30","val":48,"isActual":false},{"date":"2026-05-01","val":45.9,"isActual":false},{"date":"2026-05-02","val":42,"isActual":false},{"date":"2026-05-03","val":40.6,"isActual":false},{"date":"Actual","val":40.6,"isActual":true}]},{"label":"GB (×1000)","pts":[{"date":"2026-04-30","val":22.61,"isActual":false},{"date":"2026-05-01","val":25.07,"isActual":false},{"date":"2026-05-02","val":18.28,"isActual":false},{"date":"2026-05-03","val":15.07,"isActual":false},{"date":"Actual","val":15.07,"isActual":true}]},{"label":"Plaquetas","pts":[{"date":"2026-04-30","val":246,"isActual":false},{"date":"2026-05-01","val":215,"isActual":false},{"date":"2026-05-02","val":179,"isActual":false},{"date":"2026-05-03","val":185,"isActual":false},{"date":"Actual","val":185,"isActual":true}]},{"label":"Neutrófilos %","pts":[{"date":"2026-04-30","val":83,"isActual":false},{"date":"2026-05-01","val":89,"isActual":false},{"date":"2026-05-02","val":84,"isActual":false},{"date":"2026-05-03","val":79,"isActual":false},{"date":"Actual","val":79,"isActual":true}]},{"label":"Linfocitos %","pts":[{"date":"2026-04-30","val":5,"isActual":false},{"date":"2026-05-01","val":5,"isActual":false},{"date":"2026-05-02","val":7,"isActual":false},{"date":"2026-05-03","val":8,"isActual":false},{"date":"Actual","val":8,"isActual":true}]},{"label":"Glucosa","pts":[{"date":"2026-04-30","val":112.9,"isActual":false},{"date":"2026-05-01","val":184,"isActual":false},{"date":"2026-05-02","val":116,"isActual":false},{"date":"2026-05-03","val":122,"isActual":false},{"date":"Actual","val":122,"isActual":true}]},{"label":"Urea","pts":[{"date":"2026-04-30","val":69.2,"isActual":false},{"date":"2026-05-01","val":121,"isActual":false},{"date":"2026-05-02","val":111,"isActual":false},{"date":"2026-05-03","val":117.6,"isActual":false},{"date":"Actual","val":117.6,"isActual":true}]},{"label":"Creatinina","pts":[{"date":"2026-04-30","val":1.94,"isActual":false},{"date":"2026-05-01","val":2.91,"isActual":false},{"date":"2026-05-02","val":2.15,"isActual":false},{"date":"2026-05-03","val":1.39,"isActual":false},{"date":"Actual","val":1.39,"isActual":true}]},{"label":"Sodio","pts":[{"date":"2026-04-30","val":143,"isActual":false},{"date":"2026-05-01","val":141,"isActual":false},{"date":"2026-05-02","val":146,"isActual":false},{"date":"2026-05-03","val":148,"isActual":false},{"date":"Actual","val":148,"isActual":true}]},{"label":"Potasio","pts":[{"date":"2026-04-30","val":4.19,"isActual":false},{"date":"2026-05-01","val":5.51,"isActual":false},{"date":"2026-05-02","val":5.06,"isActual":false},{"date":"2026-05-03","val":4.26,"isActual":false},{"date":"Actual","val":4.26,"isActual":true}]},{"label":"Cloro","pts":[{"date":"2026-04-30","val":111.9,"isActual":false},{"date":"2026-05-01","val":107,"isActual":false},{"date":"2026-05-02","val":112,"isActual":false},{"date":"2026-05-03","val":112,"isActual":false},{"date":"Actual","val":112,"isActual":true}]},{"label":"Calcio","pts":[{"date":"2026-05-01","val":8.18,"isActual":false},{"date":"2026-05-02","val":7.9,"isActual":false}]},{"label":"Magnesio","pts":[{"date":"2026-05-01","val":1.68,"isActual":false},{"date":"2026-05-02","val":1.72,"isActual":false}]},{"label":"PAFI","pts":[{"date":"30/4 7 am","val":183,"isActual":false},{"date":"30/4 22","val":202,"isActual":false},{"date":"1/5 7","val":183,"isActual":false},{"date":"2/5 7","val":201,"isActual":false},{"date":"3/5 7","val":183,"isActual":false}]},{"label":"pH","pts":[{"date":"30/4 7 am","val":7.35,"isActual":false},{"date":"30/4 22","val":7.23,"isActual":false},{"date":"1/5 7","val":7.23,"isActual":false},{"date":"2/5 7","val":7.31,"isActual":false},{"date":"3/5 7","val":7.35,"isActual":false}]},{"label":"pCO₂","pts":[{"date":"30/4 7 am","val":46.2,"isActual":false},{"date":"30/4 22","val":49.3,"isActual":false},{"date":"1/5 7","val":47.9,"isActual":false},{"date":"2/5 7","val":46.1,"isActual":false},{"date":"3/5 7","val":46.2,"isActual":false}]},{"label":"pO₂","pts":[{"date":"30/4 7 am","val":91.3,"isActual":false},{"date":"30/4 22","val":100.9,"isActual":false},{"date":"1/5 7","val":91.7,"isActual":false},{"date":"2/5 7","val":100.4,"isActual":false},{"date":"3/5 7","val":91.3,"isActual":false}]},{"label":"HCO₃","pts":[{"date":"30/4 7 am","val":25.4,"isActual":false},{"date":"30/4 22","val":20.3,"isActual":false},{"date":"1/5 7","val":19.9,"isActual":false},{"date":"2/5 7","val":23.2,"isActual":false},{"date":"3/5 7","val":25.4,"isActual":false}]},{"label":"EB","pts":[{"date":"30/4 7 am","val":-0.3,"isActual":false},{"date":"30/4 22","val":-7.3,"isActual":false},{"date":"1/5 7","val":-7.6,"isActual":false},{"date":"2/5 7","val":-3.1,"isActual":false},{"date":"3/5 7","val":-0.3,"isActual":false}]},{"label":"SatO₂","pts":[{"date":"30/4 7 am","val":99,"isActual":false},{"date":"30/4 22","val":96,"isActual":false},{"date":"1/5 7","val":97.3,"isActual":false},{"date":"2/5 7","val":97.7,"isActual":false},{"date":"3/5 7","val":99,"isActual":false}]},{"label":"FiO₂","pts":[{"date":"30/4 7 am","val":50,"isActual":false},{"date":"30/4 22","val":50,"isActual":false},{"date":"1/5 7","val":50,"isActual":false},{"date":"2/5 7","val":50,"isActual":false},{"date":"3/5 7","val":50,"isActual":false}]},{"label":"Na⁺","pts":[{"date":"30/4 7 am","val":143,"isActual":false},{"date":"1/5 7","val":140,"isActual":false},{"date":"2/5 7","val":146,"isActual":false},{"date":"3/5 7","val":148,"isActual":false}]},{"label":"K⁺","pts":[{"date":"30/4 7 am","val":4.19,"isActual":false},{"date":"1/5 7","val":5.84,"isActual":false},{"date":"2/5 7","val":5.06,"isActual":false},{"date":"3/5 7","val":4.26,"isActual":false}]},{"label":"Ingresos (mL)","pts":[{"date":"2026-04-29","val":1681,"isActual":false},{"date":"2026-04-30","val":2137,"isActual":false},{"date":"2026-05-02","val":1758,"isActual":false},{"date":"Actual","val":1758,"isActual":true}]},{"label":"Diuresis (mL)","pts":[{"date":"2026-04-29","val":331.8,"isActual":false},{"date":"2026-04-30","val":481,"isActual":false},{"date":"2026-05-02","val":2150,"isActual":false},{"date":"Actual","val":2150,"isActual":true}]},{"label":"Balance (mL)","pts":[{"date":"2026-04-29","val":1349.2,"isActual":false},{"date":"2026-04-30","val":1656,"isActual":false},{"date":"2026-05-02","val":-392,"isActual":false},{"date":"Actual","val":-392,"isActual":true}]}];
+    var uid = 'p1';
+    var sel = document.getElementById('curvas-sel-'+uid);
+    SERIES.forEach(function(s,i){
+      var o = document.createElement('option');
+      o.value = i; o.textContent = s.label; sel.appendChild(o);
+    });
+
+    window['toggleCurvas_'+uid] = function(){
+      var body = document.getElementById('curvas-body-'+uid);
+      var arrow = document.getElementById('curvas-arrow-'+uid);
+      var open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      arrow.textContent = open ? '▼ mostrar' : '▲ ocultar';
+      if(!open) window['drawCurva_'+uid]();
+    };
+
+    window['drawCurva_'+uid] = function(){
+      var idx = parseInt(sel.value)||0;
+      var serie = SERIES[idx];
+      if(!serie||serie.pts.length<2) return;
+      var pts = serie.pts;
+      var canvas = document.getElementById('curvas-cv-'+uid);
+      var tblEl  = document.getElementById('curvas-tbl-'+uid);
+      var dpr = window.devicePixelRatio||1;
+      var W = canvas.parentElement.clientWidth-2;
+      var H = Math.min(280, Math.round(W*0.4));
+      canvas.width = W*dpr; canvas.height = H*dpr;
+      canvas.style.width = W+'px'; canvas.style.height = H+'px';
+      var ctx = canvas.getContext('2d');
+      ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+
+      var PAD = {t:24,r:16,b:52,l:54};
+      var cW=W-PAD.l-PAD.r, cH=H-PAD.t-PAD.b;
+      var vals = pts.map(function(p){return p.val;});
+      var minV=Math.min.apply(null,vals), maxV=Math.max.apply(null,vals);
+      var pad=(maxV-minV||Math.abs(maxV)||1)*0.18;
+      var yMin=minV-pad, yMax=maxV+pad;
+      function xOf(i){return PAD.l+(pts.length>1?i/(pts.length-1):0.5)*cW;}
+      function yOf(v){return PAD.t+cH-((v-yMin)/(yMax-yMin))*cH;}
+
+      var st = getComputedStyle(document.documentElement);
+      function cv(name,fb){var v=st.getPropertyValue(name).trim();return v||fb;}
+      var C = {ac:cv('--ac','#1560a8'),gn:cv('--gn','#1a7540'),tx2:cv('--tx2','#445570'),brd:cv('--brd','#dde5ef'),am:cv('--am','#b06000')};
+
+      // Grid
+      for(var gi=0;gi<=5;gi++){
+        var gy=PAD.t+(gi/5)*cH, gv=yMax-(gi/5)*(yMax-yMin);
+        ctx.strokeStyle=C.brd; ctx.lineWidth=0.5;
+        ctx.beginPath(); ctx.moveTo(PAD.l,gy); ctx.lineTo(PAD.l+cW,gy); ctx.stroke();
+        ctx.fillStyle=C.tx2; ctx.font='10px monospace'; ctx.textAlign='right';
+        ctx.fillText(Math.abs(gv)<10?gv.toFixed(1):Math.round(gv), PAD.l-5, gy+3.5);
+      }
+
+      // Trend line
+      var n=pts.length;
+      var sx=0,sy=0,sxy=0,sx2=0;
+      for(var ti=0;ti<n;ti++){sx+=ti;sy+=pts[ti].val;sxy+=ti*pts[ti].val;sx2+=ti*ti;}
+      var slope=(n*sxy-sx*sy)/(n*sx2-sx*sx||1);
+      var inter=(sy-slope*sx)/n;
+      ctx.strokeStyle=C.tx2+'88'; ctx.lineWidth=1.2; ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(xOf(0),yOf(inter)); ctx.lineTo(xOf(n-1),yOf(slope*(n-1)+inter)); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Area fill
+      ctx.beginPath(); ctx.moveTo(xOf(0),yOf(pts[0].val));
+      for(var ai=1;ai<n;ai++) ctx.lineTo(xOf(ai),yOf(pts[ai].val));
+      ctx.lineTo(xOf(n-1),PAD.t+cH); ctx.lineTo(xOf(0),PAD.t+cH); ctx.closePath();
+      ctx.fillStyle=C.ac+'28'; ctx.fill();
+
+      // Line
+      ctx.strokeStyle=C.ac; ctx.lineWidth=2.5; ctx.lineJoin='round';
+      ctx.beginPath();
+      for(var li=0;li<n;li++){ if(li===0) ctx.moveTo(xOf(0),yOf(pts[0].val)); else ctx.lineTo(xOf(li),yOf(pts[li].val)); }
+      ctx.stroke();
+
+      // Points + labels
+      for(var pi=0;pi<n;pi++){
+        var x=xOf(pi),y=yOf(pts[pi].val),col=pts[pi].isActual?C.gn:C.ac;
+        ctx.beginPath(); ctx.arc(x,y,pts[pi].isActual?6:4,0,Math.PI*2);
+        ctx.fillStyle=col; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.fill(); ctx.stroke();
+        ctx.fillStyle=col; ctx.font='bold 10px monospace'; ctx.textAlign='center';
+        ctx.fillText(Math.abs(pts[pi].val)<10?pts[pi].val.toFixed(1):Math.round(pts[pi].val),x,y-10);
+      }
+
+      // X labels
+      ctx.fillStyle=C.tx2; ctx.font='10px sans-serif'; ctx.textAlign='center';
+      for(var xi=0;xi<n;xi++){
+        ctx.save(); ctx.translate(xOf(xi),PAD.t+cH+14); ctx.rotate(-Math.PI/6);
+        ctx.fillText(pts[xi].date,0,0); ctx.restore();
+      }
+
+      // Title + trend arrow
+      var trendUp=slope>0.05, trendDn=slope<-0.05;
+      ctx.textAlign='left'; ctx.font='11px sans-serif'; ctx.fillStyle=C.tx2;
+      ctx.fillText(serie.label, PAD.l, 14);
+      ctx.fillStyle=trendUp?C.am:trendDn?C.gn:C.tx2;
+      ctx.font='bold 12px sans-serif';
+      ctx.fillText(trendUp?' ↑ sube':trendDn?' ↓ baja':' → estable', PAD.l+ctx.measureText(serie.label).width+2, 14);
+
+      // Table
+      var dir=trendUp?'↑ sube':trendDn?'↓ baja':'→ estable';
+      var rows='';
+      for(var ri=0;ri<pts.length;ri++){
+        var diff=ri===0?null:pts[ri].val-pts[ri-1].val;
+        var dStr=diff===null?'—':(diff>0?'+':'')+diff.toFixed(1);
+        var dCol=diff===null?'':diff>0?'color:'+C.am:'color:'+C.gn;
+        rows+='<tr style="border-bottom:1px solid #eee"><td style="padding:.15rem .4rem;'+(pts[ri].isActual?'font-weight:700;color:'+C.gn:'')+'">'+pts[ri].date+(pts[ri].isActual?' ●':'')+'</td><td style="font-family:monospace;font-weight:700;text-align:right;padding:.15rem .4rem">'+(Math.abs(pts[ri].val)<10?pts[ri].val.toFixed(1):Math.round(pts[ri].val))+'</td><td style="font-family:monospace;text-align:right;padding:.15rem .4rem;'+dCol+'">'+dStr+'</td></tr>';
+      }
+      tblEl.innerHTML='<div style="font-size:.6rem;color:'+C.tx2+';font-family:monospace;margin-bottom:.3rem">Tendencia: <strong>'+dir+'</strong> &nbsp;·&nbsp; Mín: <strong>'+Math.min.apply(null,vals).toFixed(1)+'</strong> &nbsp;·&nbsp; Máx: <strong>'+Math.max.apply(null,vals).toFixed(1)+'</strong> &nbsp;·&nbsp; Último: <strong>'+vals[vals.length-1].toFixed(1)+'</strong></div><table style="border-collapse:collapse;font-size:.65rem;width:100%"><thead><tr><th style="text-align:left;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Fecha</th><th style="text-align:right;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Valor</th><th style="text-align:right;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Δ</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    };
+  })();
+  </script>
         </div>
       </div>
     </div><div class="panel" id="panel-2">
@@ -1033,6 +1295,137 @@ body{background:var(--bg);color:var(--tx);font-family:var(--sans);min-height:100
           
 
           
+
+          
+  <div class="card" id="curvas-card-p2">
+    <div class="ct" style="display:flex;align-items:center;gap:.5rem;cursor:pointer" onclick="toggleCurvas_p2()">
+      📈 Curvas de tendencia
+      <span id="curvas-arrow-p2" style="font-size:.6rem;color:var(--mu);margin-left:auto">▼ mostrar</span>
+    </div>
+    <div class="cb" id="curvas-body-p2" style="display:none">
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.6rem;align-items:center">
+        <span style="font-size:.6rem;color:var(--mu);font-family:var(--mono)">Parámetro:</span>
+        <select id="curvas-sel-p2" onchange="drawCurva_p2()" style="background:var(--sur2,#f6f9fc);border:1px solid var(--brd,#dde5ef);border-radius:5px;padding:.22rem .38rem;font-size:.66rem;color:var(--tx,#182030);outline:none;max-width:220px"></select>
+      </div>
+      <canvas id="curvas-cv-p2" style="width:100%;display:block"></canvas>
+      <div id="curvas-tbl-p2" style="margin-top:.6rem;overflow-x:auto;font-size:.65rem"></div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var SERIES = [{"label":"Hb (g/dL)","pts":[{"date":"2026-04-28","val":15.7,"isActual":false},{"date":"2026-04-30","val":13.7,"isActual":false},{"date":"2026-05-03","val":12.4,"isActual":false},{"date":"Actual","val":12.4,"isActual":true}]},{"label":"Hcto (%)","pts":[{"date":"2026-04-28","val":47.6,"isActual":false},{"date":"2026-04-30","val":42.4,"isActual":false},{"date":"2026-05-03","val":39.9,"isActual":false},{"date":"Actual","val":39.9,"isActual":true}]},{"label":"GB (×1000)","pts":[{"date":"2026-04-28","val":13.99,"isActual":false},{"date":"2026-04-30","val":12.57,"isActual":false},{"date":"2026-05-03","val":11.13,"isActual":false},{"date":"Actual","val":11.13,"isActual":true}]},{"label":"Plaquetas","pts":[{"date":"2026-04-28","val":179,"isActual":false},{"date":"2026-04-30","val":98,"isActual":false},{"date":"2026-05-03","val":71,"isActual":false},{"date":"Actual","val":71,"isActual":true}]},{"label":"Neutrófilos %","pts":[{"date":"2026-04-28","val":88,"isActual":false},{"date":"2026-04-30","val":78,"isActual":false},{"date":"2026-05-03","val":75,"isActual":false},{"date":"Actual","val":75,"isActual":true}]},{"label":"Linfocitos %","pts":[{"date":"2026-04-28","val":7,"isActual":false},{"date":"2026-04-30","val":9,"isActual":false},{"date":"2026-05-03","val":13,"isActual":false},{"date":"Actual","val":13,"isActual":true}]},{"label":"Glucosa","pts":[{"date":"2026-04-28","val":161.6,"isActual":false},{"date":"2026-04-30","val":98.7,"isActual":false},{"date":"2026-05-03","val":114.4,"isActual":false},{"date":"Actual","val":114.4,"isActual":true}]},{"label":"Urea","pts":[{"date":"2026-04-28","val":58.4,"isActual":false},{"date":"2026-04-30","val":150.1,"isActual":false},{"date":"2026-05-03","val":180.3,"isActual":false},{"date":"Actual","val":180.3,"isActual":true}]},{"label":"Creatinina","pts":[{"date":"2026-04-28","val":1.7,"isActual":false},{"date":"2026-04-30","val":2.79,"isActual":false},{"date":"2026-05-03","val":1.77,"isActual":false},{"date":"Actual","val":1.77,"isActual":true}]},{"label":"Sodio","pts":[{"date":"2026-04-28","val":146,"isActual":false},{"date":"2026-04-30","val":152,"isActual":false},{"date":"2026-05-03","val":162,"isActual":false},{"date":"Actual","val":162,"isActual":true}]},{"label":"Potasio","pts":[{"date":"2026-04-28","val":4.21,"isActual":false},{"date":"2026-04-30","val":4.48,"isActual":false},{"date":"2026-05-03","val":4.52,"isActual":false},{"date":"Actual","val":4.52,"isActual":true}]},{"label":"Cloro","pts":[{"date":"2026-04-28","val":114,"isActual":false},{"date":"2026-04-30","val":122.5,"isActual":false},{"date":"2026-05-03","val":124,"isActual":false},{"date":"Actual","val":124,"isActual":true}]},{"label":"CK Total","pts":[{"date":"2026-05-03","val":2777,"isActual":false},{"date":"Actual","val":2777,"isActual":true}]},{"label":"PAFI","pts":[{"date":"28/4 7am","val":147,"isActual":false},{"date":"28/4 22pm","val":154,"isActual":false},{"date":"29/4 7am","val":154,"isActual":false},{"date":"30/4 22","val":147,"isActual":false},{"date":"1/5 7","val":168,"isActual":false},{"date":"2/5 7","val":130,"isActual":false},{"date":"3/5 7","val":147,"isActual":false}]},{"label":"pH","pts":[{"date":"28/4 7am","val":7.36,"isActual":false},{"date":"28/4 22pm","val":7.32,"isActual":false},{"date":"29/4 7am","val":7.28,"isActual":false},{"date":"30/4 22","val":7.28,"isActual":false},{"date":"1/5 7","val":7.35,"isActual":false},{"date":"2/5 7","val":7.2,"isActual":false},{"date":"3/5 7","val":7.36,"isActual":false}]},{"label":"pCO₂","pts":[{"date":"28/4 7am","val":38.6,"isActual":false},{"date":"28/4 22pm","val":42.9,"isActual":false},{"date":"29/4 7am","val":45.1,"isActual":false},{"date":"30/4 22","val":50.1,"isActual":false},{"date":"1/5 7","val":39.6,"isActual":false},{"date":"2/5 7","val":54.3,"isActual":false},{"date":"3/5 7","val":38.6,"isActual":false}]},{"label":"pO₂","pts":[{"date":"28/4 7am","val":73.6,"isActual":false},{"date":"28/4 22pm","val":77,"isActual":false},{"date":"29/4 7am","val":77,"isActual":false},{"date":"30/4 22","val":73.4,"isActual":false},{"date":"1/5 7","val":84.2,"isActual":false},{"date":"2/5 7","val":64.9,"isActual":false},{"date":"3/5 7","val":73.6,"isActual":false}]},{"label":"HCO₃","pts":[{"date":"28/4 7am","val":21.5,"isActual":false},{"date":"28/4 22pm","val":21.9,"isActual":false},{"date":"29/4 7am","val":21.1,"isActual":false},{"date":"30/4 22","val":23.5,"isActual":false},{"date":"1/5 7","val":21.8,"isActual":false},{"date":"2/5 7","val":27.4,"isActual":false},{"date":"3/5 7","val":21.5,"isActual":false}]},{"label":"EB","pts":[{"date":"28/4 7am","val":-3.4,"isActual":false},{"date":"28/4 22pm","val":-4,"isActual":false},{"date":"29/4 7am","val":-5.5,"isActual":false},{"date":"30/4 22","val":-3.5,"isActual":false},{"date":"1/5 7","val":-3.3,"isActual":false},{"date":"2/5 7","val":0.3,"isActual":false},{"date":"3/5 7","val":-3.4,"isActual":false}]},{"label":"SatO₂","pts":[{"date":"28/4 7am","val":99,"isActual":false},{"date":"28/4 22pm","val":97.8,"isActual":false},{"date":"29/4 7am","val":98,"isActual":false},{"date":"30/4 22","val":98.6,"isActual":false},{"date":"1/5 7","val":99,"isActual":false},{"date":"2/5 7","val":92.5,"isActual":false},{"date":"3/5 7","val":99,"isActual":false}]},{"label":"FiO₂","pts":[{"date":"28/4 7am","val":50,"isActual":false},{"date":"28/4 22pm","val":50,"isActual":false},{"date":"29/4 7am","val":50,"isActual":false},{"date":"30/4 22","val":50,"isActual":false},{"date":"1/5 7","val":50,"isActual":false},{"date":"2/5 7","val":50,"isActual":false},{"date":"3/5 7","val":50,"isActual":false}]},{"label":"Na⁺","pts":[{"date":"28/4 7am","val":146,"isActual":false},{"date":"28/4 22pm","val":147,"isActual":false},{"date":"29/4 7am","val":149,"isActual":false},{"date":"1/5 7","val":151,"isActual":false},{"date":"2/5 7","val":161,"isActual":false},{"date":"3/5 7","val":162,"isActual":false}]},{"label":"K⁺","pts":[{"date":"28/4 7am","val":4.21,"isActual":false},{"date":"28/4 22pm","val":4.78,"isActual":false},{"date":"29/4 7am","val":4.66,"isActual":false},{"date":"1/5 7","val":3.97,"isActual":false},{"date":"2/5 7","val":4.37,"isActual":false},{"date":"3/5 7","val":4.52,"isActual":false}]},{"label":"Ingresos (mL)","pts":[{"date":"2026-04-27","val":1815,"isActual":false},{"date":"2026-04-28","val":2346,"isActual":false},{"date":"2026-04-29","val":2644.5,"isActual":false},{"date":"2026-05-02","val":4642,"isActual":false}]},{"label":"Diuresis (mL)","pts":[{"date":"2026-04-27","val":1300,"isActual":false},{"date":"2026-04-28","val":1850,"isActual":false},{"date":"2026-04-29","val":2060,"isActual":false},{"date":"2026-05-02","val":2460,"isActual":false}]},{"label":"Drenajes (mL)","pts":[{"date":"2026-04-28","val":170,"isActual":false},{"date":"2026-04-29","val":120,"isActual":false}]},{"label":"Balance (mL)","pts":[{"date":"2026-04-27","val":515,"isActual":false},{"date":"2026-04-28","val":326,"isActual":false},{"date":"2026-04-29","val":464.5,"isActual":false},{"date":"2026-05-02","val":2182,"isActual":false}]}];
+    var uid = 'p2';
+    var sel = document.getElementById('curvas-sel-'+uid);
+    SERIES.forEach(function(s,i){
+      var o = document.createElement('option');
+      o.value = i; o.textContent = s.label; sel.appendChild(o);
+    });
+
+    window['toggleCurvas_'+uid] = function(){
+      var body = document.getElementById('curvas-body-'+uid);
+      var arrow = document.getElementById('curvas-arrow-'+uid);
+      var open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      arrow.textContent = open ? '▼ mostrar' : '▲ ocultar';
+      if(!open) window['drawCurva_'+uid]();
+    };
+
+    window['drawCurva_'+uid] = function(){
+      var idx = parseInt(sel.value)||0;
+      var serie = SERIES[idx];
+      if(!serie||serie.pts.length<2) return;
+      var pts = serie.pts;
+      var canvas = document.getElementById('curvas-cv-'+uid);
+      var tblEl  = document.getElementById('curvas-tbl-'+uid);
+      var dpr = window.devicePixelRatio||1;
+      var W = canvas.parentElement.clientWidth-2;
+      var H = Math.min(280, Math.round(W*0.4));
+      canvas.width = W*dpr; canvas.height = H*dpr;
+      canvas.style.width = W+'px'; canvas.style.height = H+'px';
+      var ctx = canvas.getContext('2d');
+      ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+
+      var PAD = {t:24,r:16,b:52,l:54};
+      var cW=W-PAD.l-PAD.r, cH=H-PAD.t-PAD.b;
+      var vals = pts.map(function(p){return p.val;});
+      var minV=Math.min.apply(null,vals), maxV=Math.max.apply(null,vals);
+      var pad=(maxV-minV||Math.abs(maxV)||1)*0.18;
+      var yMin=minV-pad, yMax=maxV+pad;
+      function xOf(i){return PAD.l+(pts.length>1?i/(pts.length-1):0.5)*cW;}
+      function yOf(v){return PAD.t+cH-((v-yMin)/(yMax-yMin))*cH;}
+
+      var st = getComputedStyle(document.documentElement);
+      function cv(name,fb){var v=st.getPropertyValue(name).trim();return v||fb;}
+      var C = {ac:cv('--ac','#1560a8'),gn:cv('--gn','#1a7540'),tx2:cv('--tx2','#445570'),brd:cv('--brd','#dde5ef'),am:cv('--am','#b06000')};
+
+      // Grid
+      for(var gi=0;gi<=5;gi++){
+        var gy=PAD.t+(gi/5)*cH, gv=yMax-(gi/5)*(yMax-yMin);
+        ctx.strokeStyle=C.brd; ctx.lineWidth=0.5;
+        ctx.beginPath(); ctx.moveTo(PAD.l,gy); ctx.lineTo(PAD.l+cW,gy); ctx.stroke();
+        ctx.fillStyle=C.tx2; ctx.font='10px monospace'; ctx.textAlign='right';
+        ctx.fillText(Math.abs(gv)<10?gv.toFixed(1):Math.round(gv), PAD.l-5, gy+3.5);
+      }
+
+      // Trend line
+      var n=pts.length;
+      var sx=0,sy=0,sxy=0,sx2=0;
+      for(var ti=0;ti<n;ti++){sx+=ti;sy+=pts[ti].val;sxy+=ti*pts[ti].val;sx2+=ti*ti;}
+      var slope=(n*sxy-sx*sy)/(n*sx2-sx*sx||1);
+      var inter=(sy-slope*sx)/n;
+      ctx.strokeStyle=C.tx2+'88'; ctx.lineWidth=1.2; ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(xOf(0),yOf(inter)); ctx.lineTo(xOf(n-1),yOf(slope*(n-1)+inter)); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Area fill
+      ctx.beginPath(); ctx.moveTo(xOf(0),yOf(pts[0].val));
+      for(var ai=1;ai<n;ai++) ctx.lineTo(xOf(ai),yOf(pts[ai].val));
+      ctx.lineTo(xOf(n-1),PAD.t+cH); ctx.lineTo(xOf(0),PAD.t+cH); ctx.closePath();
+      ctx.fillStyle=C.ac+'28'; ctx.fill();
+
+      // Line
+      ctx.strokeStyle=C.ac; ctx.lineWidth=2.5; ctx.lineJoin='round';
+      ctx.beginPath();
+      for(var li=0;li<n;li++){ if(li===0) ctx.moveTo(xOf(0),yOf(pts[0].val)); else ctx.lineTo(xOf(li),yOf(pts[li].val)); }
+      ctx.stroke();
+
+      // Points + labels
+      for(var pi=0;pi<n;pi++){
+        var x=xOf(pi),y=yOf(pts[pi].val),col=pts[pi].isActual?C.gn:C.ac;
+        ctx.beginPath(); ctx.arc(x,y,pts[pi].isActual?6:4,0,Math.PI*2);
+        ctx.fillStyle=col; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.fill(); ctx.stroke();
+        ctx.fillStyle=col; ctx.font='bold 10px monospace'; ctx.textAlign='center';
+        ctx.fillText(Math.abs(pts[pi].val)<10?pts[pi].val.toFixed(1):Math.round(pts[pi].val),x,y-10);
+      }
+
+      // X labels
+      ctx.fillStyle=C.tx2; ctx.font='10px sans-serif'; ctx.textAlign='center';
+      for(var xi=0;xi<n;xi++){
+        ctx.save(); ctx.translate(xOf(xi),PAD.t+cH+14); ctx.rotate(-Math.PI/6);
+        ctx.fillText(pts[xi].date,0,0); ctx.restore();
+      }
+
+      // Title + trend arrow
+      var trendUp=slope>0.05, trendDn=slope<-0.05;
+      ctx.textAlign='left'; ctx.font='11px sans-serif'; ctx.fillStyle=C.tx2;
+      ctx.fillText(serie.label, PAD.l, 14);
+      ctx.fillStyle=trendUp?C.am:trendDn?C.gn:C.tx2;
+      ctx.font='bold 12px sans-serif';
+      ctx.fillText(trendUp?' ↑ sube':trendDn?' ↓ baja':' → estable', PAD.l+ctx.measureText(serie.label).width+2, 14);
+
+      // Table
+      var dir=trendUp?'↑ sube':trendDn?'↓ baja':'→ estable';
+      var rows='';
+      for(var ri=0;ri<pts.length;ri++){
+        var diff=ri===0?null:pts[ri].val-pts[ri-1].val;
+        var dStr=diff===null?'—':(diff>0?'+':'')+diff.toFixed(1);
+        var dCol=diff===null?'':diff>0?'color:'+C.am:'color:'+C.gn;
+        rows+='<tr style="border-bottom:1px solid #eee"><td style="padding:.15rem .4rem;'+(pts[ri].isActual?'font-weight:700;color:'+C.gn:'')+'">'+pts[ri].date+(pts[ri].isActual?' ●':'')+'</td><td style="font-family:monospace;font-weight:700;text-align:right;padding:.15rem .4rem">'+(Math.abs(pts[ri].val)<10?pts[ri].val.toFixed(1):Math.round(pts[ri].val))+'</td><td style="font-family:monospace;text-align:right;padding:.15rem .4rem;'+dCol+'">'+dStr+'</td></tr>';
+      }
+      tblEl.innerHTML='<div style="font-size:.6rem;color:'+C.tx2+';font-family:monospace;margin-bottom:.3rem">Tendencia: <strong>'+dir+'</strong> &nbsp;·&nbsp; Mín: <strong>'+Math.min.apply(null,vals).toFixed(1)+'</strong> &nbsp;·&nbsp; Máx: <strong>'+Math.max.apply(null,vals).toFixed(1)+'</strong> &nbsp;·&nbsp; Último: <strong>'+vals[vals.length-1].toFixed(1)+'</strong></div><table style="border-collapse:collapse;font-size:.65rem;width:100%"><thead><tr><th style="text-align:left;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Fecha</th><th style="text-align:right;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Valor</th><th style="text-align:right;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Δ</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    };
+  })();
+  </script>
         </div>
       </div>
     </div><div class="panel" id="panel-3">
@@ -1389,6 +1782,137 @@ body{background:var(--bg);color:var(--tx);font-family:var(--sans);min-height:100
           
 
           
+
+          
+  <div class="card" id="curvas-card-p3">
+    <div class="ct" style="display:flex;align-items:center;gap:.5rem;cursor:pointer" onclick="toggleCurvas_p3()">
+      📈 Curvas de tendencia
+      <span id="curvas-arrow-p3" style="font-size:.6rem;color:var(--mu);margin-left:auto">▼ mostrar</span>
+    </div>
+    <div class="cb" id="curvas-body-p3" style="display:none">
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.6rem;align-items:center">
+        <span style="font-size:.6rem;color:var(--mu);font-family:var(--mono)">Parámetro:</span>
+        <select id="curvas-sel-p3" onchange="drawCurva_p3()" style="background:var(--sur2,#f6f9fc);border:1px solid var(--brd,#dde5ef);border-radius:5px;padding:.22rem .38rem;font-size:.66rem;color:var(--tx,#182030);outline:none;max-width:220px"></select>
+      </div>
+      <canvas id="curvas-cv-p3" style="width:100%;display:block"></canvas>
+      <div id="curvas-tbl-p3" style="margin-top:.6rem;overflow-x:auto;font-size:.65rem"></div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var SERIES = [{"label":"Hb (g/dL)","pts":[{"date":"2026-04-26","val":10.4,"isActual":false},{"date":"2026-04-28","val":9.8,"isActual":false},{"date":"2026-04-30","val":10.1,"isActual":false},{"date":"2026-05-01","val":10,"isActual":false},{"date":"2026-05-02","val":10.5,"isActual":false},{"date":"2026-05-03","val":10.9,"isActual":false},{"date":"Actual","val":10.9,"isActual":true}]},{"label":"Hcto (%)","pts":[{"date":"2026-04-26","val":33.6,"isActual":false},{"date":"2026-04-28","val":30.6,"isActual":false},{"date":"2026-04-30","val":31.7,"isActual":false},{"date":"2026-05-01","val":32.2,"isActual":false},{"date":"2026-05-02","val":34.6,"isActual":false},{"date":"2026-05-03","val":36.9,"isActual":false},{"date":"Actual","val":36.9,"isActual":true}]},{"label":"GB (×1000)","pts":[{"date":"2026-04-26","val":38.23,"isActual":false},{"date":"2026-04-28","val":19.09,"isActual":false},{"date":"2026-04-30","val":14.42,"isActual":false},{"date":"2026-05-01","val":12.67,"isActual":false},{"date":"2026-05-02","val":18.68,"isActual":false},{"date":"2026-05-03","val":31.34,"isActual":false},{"date":"Actual","val":31.34,"isActual":true}]},{"label":"Plaquetas","pts":[{"date":"2026-04-26","val":144,"isActual":false},{"date":"2026-04-28","val":115,"isActual":false},{"date":"2026-04-30","val":92,"isActual":false},{"date":"2026-05-01","val":83,"isActual":false},{"date":"2026-05-02","val":107,"isActual":false},{"date":"2026-05-03","val":104,"isActual":false},{"date":"Actual","val":104,"isActual":true}]},{"label":"VSG","pts":[{"date":"2026-04-26","val":48,"isActual":false},{"date":"2026-05-02","val":100,"isActual":false}]},{"label":"Neutrófilos %","pts":[{"date":"2026-04-26","val":83,"isActual":false},{"date":"2026-04-28","val":74,"isActual":false},{"date":"2026-04-30","val":78,"isActual":false},{"date":"2026-05-01","val":80,"isActual":false},{"date":"2026-05-02","val":62,"isActual":false},{"date":"2026-05-03","val":71,"isActual":false},{"date":"Actual","val":71,"isActual":true}]},{"label":"Linfocitos %","pts":[{"date":"2026-04-26","val":11,"isActual":false},{"date":"2026-04-28","val":19,"isActual":false},{"date":"2026-04-30","val":16,"isActual":false},{"date":"2026-05-01","val":15,"isActual":false},{"date":"2026-05-02","val":32,"isActual":false},{"date":"2026-05-03","val":21,"isActual":false},{"date":"Actual","val":21,"isActual":true}]},{"label":"Glucosa","pts":[{"date":"2026-04-26","val":53.4,"isActual":false},{"date":"2026-04-28","val":97.9,"isActual":false},{"date":"2026-04-30","val":258,"isActual":false},{"date":"2026-05-01","val":259.2,"isActual":false},{"date":"2026-05-02","val":91.6,"isActual":false},{"date":"2026-05-03","val":209,"isActual":false},{"date":"Actual","val":209,"isActual":true}]},{"label":"Urea","pts":[{"date":"2026-04-26","val":48.9,"isActual":false},{"date":"2026-04-28","val":96.6,"isActual":false},{"date":"2026-04-30","val":154,"isActual":false},{"date":"2026-05-01","val":200,"isActual":false},{"date":"2026-05-02","val":193,"isActual":false},{"date":"2026-05-03","val":197.2,"isActual":false},{"date":"Actual","val":197.2,"isActual":true}]},{"label":"Creatinina","pts":[{"date":"2026-04-26","val":0.92,"isActual":false},{"date":"2026-04-28","val":1.13,"isActual":false},{"date":"2026-04-30","val":1.98,"isActual":false},{"date":"2026-05-01","val":2.54,"isActual":false},{"date":"2026-05-02","val":2.33,"isActual":false},{"date":"2026-05-03","val":2.75,"isActual":false},{"date":"Actual","val":2.75,"isActual":true}]},{"label":"Sodio","pts":[{"date":"2026-04-26","val":154,"isActual":false},{"date":"2026-04-28","val":157,"isActual":false},{"date":"2026-04-30","val":159,"isActual":false},{"date":"2026-05-01","val":159,"isActual":false},{"date":"2026-05-02","val":164,"isActual":false},{"date":"2026-05-03","val":161,"isActual":false},{"date":"Actual","val":161,"isActual":true}]},{"label":"Potasio","pts":[{"date":"2026-04-26","val":2.87,"isActual":false},{"date":"2026-04-28","val":3.24,"isActual":false},{"date":"2026-04-30","val":3,"isActual":false},{"date":"2026-05-01","val":2.98,"isActual":false},{"date":"2026-05-02","val":2.4,"isActual":false},{"date":"2026-05-03","val":4.89,"isActual":false},{"date":"Actual","val":4.89,"isActual":true}]},{"label":"Cloro","pts":[{"date":"2026-04-26","val":112,"isActual":false},{"date":"2026-04-28","val":121,"isActual":false},{"date":"2026-04-30","val":121,"isActual":false},{"date":"2026-05-01","val":114,"isActual":false},{"date":"2026-05-02","val":116,"isActual":false},{"date":"2026-05-03","val":118.1,"isActual":false},{"date":"Actual","val":118.1,"isActual":true}]},{"label":"Calcio","pts":[{"date":"2026-04-26","val":8.06,"isActual":false},{"date":"2026-05-01","val":8.27,"isActual":false},{"date":"2026-05-02","val":8.63,"isActual":false}]},{"label":"Magnesio","pts":[{"date":"2026-04-26","val":2.17,"isActual":false},{"date":"2026-05-01","val":1.67,"isActual":false},{"date":"2026-05-02","val":1.65,"isActual":false}]},{"label":"GOT","pts":[{"date":"2026-04-28","val":60,"isActual":false},{"date":"2026-05-01","val":168,"isActual":false},{"date":"2026-05-02","val":79,"isActual":false}]},{"label":"GPT","pts":[{"date":"2026-04-28","val":55,"isActual":false},{"date":"2026-05-01","val":64,"isActual":false},{"date":"2026-05-02","val":60,"isActual":false}]},{"label":"F.ALC","pts":[{"date":"2026-04-28","val":121,"isActual":false},{"date":"2026-05-01","val":154,"isActual":false}]},{"label":"Bili Total","pts":[{"date":"2026-04-28","val":0.33,"isActual":false},{"date":"2026-05-01","val":0.5,"isActual":false}]},{"label":"TP","pts":[{"date":"2026-04-26","val":70,"isActual":false},{"date":"2026-04-28","val":70,"isActual":false}]},{"label":"KPTT","pts":[{"date":"2026-04-26","val":31,"isActual":false},{"date":"2026-04-28","val":31,"isActual":false}]},{"label":"PAFI","pts":[{"date":"26/4 7:00","val":205,"isActual":false},{"date":"27/4 7:00","val":210,"isActual":false},{"date":"28/4 7:00","val":218,"isActual":false},{"date":"28/4 10pm (V)","val":113,"isActual":false},{"date":"29/4 7am","val":194,"isActual":false},{"date":"30/4 22","val":148,"isActual":false},{"date":"1/5 7","val":166,"isActual":false},{"date":"2/5 7","val":126,"isActual":false},{"date":"2/5 19","val":183,"isActual":false},{"date":"3/5 7","val":205,"isActual":false}]},{"label":"pH","pts":[{"date":"26/4 7:00","val":7.35,"isActual":false},{"date":"27/4 7:00","val":7.49,"isActual":false},{"date":"28/4 7:00","val":7.46,"isActual":false},{"date":"28/4 10pm (V)","val":7.43,"isActual":false},{"date":"29/4 7am","val":7.45,"isActual":false},{"date":"30/4 22","val":7.53,"isActual":false},{"date":"1/5 7","val":7.48,"isActual":false},{"date":"2/5 7","val":7.55,"isActual":false},{"date":"2/5 19","val":7.42,"isActual":false},{"date":"3/5 7","val":7.35,"isActual":false}]},{"label":"pCO₂","pts":[{"date":"26/4 7:00","val":49.8,"isActual":false},{"date":"27/4 7:00","val":37.5,"isActual":false},{"date":"28/4 7:00","val":40.6,"isActual":false},{"date":"28/4 10pm (V)","val":45.6,"isActual":false},{"date":"29/4 7am","val":39.1,"isActual":false},{"date":"30/4 22","val":35.5,"isActual":false},{"date":"1/5 7","val":42.2,"isActual":false},{"date":"2/5 7","val":36.3,"isActual":false},{"date":"2/5 19","val":50.4,"isActual":false},{"date":"3/5 7","val":49.8,"isActual":false}]},{"label":"pO₂","pts":[{"date":"26/4 7:00","val":102.6,"isActual":false},{"date":"27/4 7:00","val":105,"isActual":false},{"date":"28/4 7:00","val":109,"isActual":false},{"date":"28/4 10pm (V)","val":56.3,"isActual":false},{"date":"29/4 7am","val":97,"isActual":false},{"date":"30/4 22","val":73.9,"isActual":false},{"date":"1/5 7","val":83,"isActual":false},{"date":"2/5 7","val":63.1,"isActual":false},{"date":"2/5 19","val":91.7,"isActual":false},{"date":"3/5 7","val":102.6,"isActual":false}]},{"label":"HCO₃","pts":[{"date":"26/4 7:00","val":26.9,"isActual":false},{"date":"27/4 7:00","val":28,"isActual":false},{"date":"28/4 7:00","val":28.4,"isActual":false},{"date":"28/4 10pm (V)","val":29.7,"isActual":false},{"date":"29/4 7am","val":26.6,"isActual":false},{"date":"30/4 22","val":29.4,"isActual":false},{"date":"1/5 7","val":31.1,"isActual":false},{"date":"2/5 7","val":31.1,"isActual":false},{"date":"2/5 19","val":32.1,"isActual":false},{"date":"3/5 7","val":26.9,"isActual":false}]},{"label":"EB","pts":[{"date":"26/4 7:00","val":0.5,"isActual":false},{"date":"27/4 7:00","val":-1.5,"isActual":false},{"date":"28/4 7:00","val":4.3,"isActual":false},{"date":"28/4 10pm (V)","val":4.8,"isActual":false},{"date":"29/4 7am","val":2.5,"isActual":false},{"date":"30/4 22","val":6.5,"isActual":false},{"date":"1/5 7","val":7,"isActual":false},{"date":"2/5 7","val":8.3,"isActual":false},{"date":"2/5 19","val":6.7,"isActual":false},{"date":"3/5 7","val":0.5,"isActual":false}]},{"label":"SatO₂","pts":[{"date":"26/4 7:00","val":99,"isActual":false},{"date":"27/4 7:00","val":99,"isActual":false},{"date":"28/4 7:00","val":98.4,"isActual":false},{"date":"28/4 10pm (V)","val":90.6,"isActual":false},{"date":"29/4 7am","val":97.9,"isActual":false},{"date":"30/4 22","val":97.4,"isActual":false},{"date":"1/5 7","val":99,"isActual":false},{"date":"2/5 7","val":95.3,"isActual":false},{"date":"2/5 19","val":99,"isActual":false},{"date":"3/5 7","val":99,"isActual":false}]},{"label":"FiO₂","pts":[{"date":"26/4 7:00","val":50,"isActual":false},{"date":"27/4 7:00","val":50,"isActual":false},{"date":"28/4 7:00","val":50,"isActual":false},{"date":"28/4 10pm (V)","val":50,"isActual":false},{"date":"29/4 7am","val":50,"isActual":false},{"date":"30/4 22","val":50,"isActual":false},{"date":"1/5 7","val":50,"isActual":false},{"date":"2/5 7","val":50,"isActual":false},{"date":"2/5 19","val":50,"isActual":false},{"date":"3/5 7","val":50,"isActual":false}]},{"label":"Na⁺","pts":[{"date":"26/4 7:00","val":154,"isActual":false},{"date":"27/4 7:00","val":150,"isActual":false},{"date":"28/4 7:00","val":157,"isActual":false},{"date":"1/5 7","val":153,"isActual":false},{"date":"2/5 7","val":164,"isActual":false},{"date":"2/5 19","val":156,"isActual":false},{"date":"3/5 7","val":161,"isActual":false}]},{"label":"K⁺","pts":[{"date":"26/4 7:00","val":2.87,"isActual":false},{"date":"27/4 7:00","val":3.45,"isActual":false},{"date":"28/4 7:00","val":3.24,"isActual":false},{"date":"1/5 7","val":2.73,"isActual":false},{"date":"2/5 7","val":2.4,"isActual":false},{"date":"2/5 19","val":4.06,"isActual":false},{"date":"3/5 7","val":4.89,"isActual":false}]},{"label":"Ingresos (mL)","pts":[{"date":"2026-04-27","val":1843,"isActual":false},{"date":"2026-04-28","val":2163,"isActual":false},{"date":"2026-04-29","val":3431,"isActual":false},{"date":"2026-05-01","val":2882,"isActual":false},{"date":"2026-05-02","val":4048,"isActual":false}]},{"label":"Diuresis (mL)","pts":[{"date":"2026-04-27","val":2250,"isActual":false},{"date":"2026-04-28","val":2450,"isActual":false},{"date":"2026-04-29","val":3700,"isActual":false},{"date":"2026-05-01","val":3000,"isActual":false},{"date":"2026-05-02","val":1200,"isActual":false}]},{"label":"Balance (mL)","pts":[{"date":"2026-04-27","val":-407,"isActual":false},{"date":"2026-04-28","val":-287,"isActual":false},{"date":"2026-04-29","val":-269,"isActual":false},{"date":"2026-05-01","val":-118,"isActual":false},{"date":"2026-05-02","val":2848,"isActual":false}]}];
+    var uid = 'p3';
+    var sel = document.getElementById('curvas-sel-'+uid);
+    SERIES.forEach(function(s,i){
+      var o = document.createElement('option');
+      o.value = i; o.textContent = s.label; sel.appendChild(o);
+    });
+
+    window['toggleCurvas_'+uid] = function(){
+      var body = document.getElementById('curvas-body-'+uid);
+      var arrow = document.getElementById('curvas-arrow-'+uid);
+      var open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      arrow.textContent = open ? '▼ mostrar' : '▲ ocultar';
+      if(!open) window['drawCurva_'+uid]();
+    };
+
+    window['drawCurva_'+uid] = function(){
+      var idx = parseInt(sel.value)||0;
+      var serie = SERIES[idx];
+      if(!serie||serie.pts.length<2) return;
+      var pts = serie.pts;
+      var canvas = document.getElementById('curvas-cv-'+uid);
+      var tblEl  = document.getElementById('curvas-tbl-'+uid);
+      var dpr = window.devicePixelRatio||1;
+      var W = canvas.parentElement.clientWidth-2;
+      var H = Math.min(280, Math.round(W*0.4));
+      canvas.width = W*dpr; canvas.height = H*dpr;
+      canvas.style.width = W+'px'; canvas.style.height = H+'px';
+      var ctx = canvas.getContext('2d');
+      ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+
+      var PAD = {t:24,r:16,b:52,l:54};
+      var cW=W-PAD.l-PAD.r, cH=H-PAD.t-PAD.b;
+      var vals = pts.map(function(p){return p.val;});
+      var minV=Math.min.apply(null,vals), maxV=Math.max.apply(null,vals);
+      var pad=(maxV-minV||Math.abs(maxV)||1)*0.18;
+      var yMin=minV-pad, yMax=maxV+pad;
+      function xOf(i){return PAD.l+(pts.length>1?i/(pts.length-1):0.5)*cW;}
+      function yOf(v){return PAD.t+cH-((v-yMin)/(yMax-yMin))*cH;}
+
+      var st = getComputedStyle(document.documentElement);
+      function cv(name,fb){var v=st.getPropertyValue(name).trim();return v||fb;}
+      var C = {ac:cv('--ac','#1560a8'),gn:cv('--gn','#1a7540'),tx2:cv('--tx2','#445570'),brd:cv('--brd','#dde5ef'),am:cv('--am','#b06000')};
+
+      // Grid
+      for(var gi=0;gi<=5;gi++){
+        var gy=PAD.t+(gi/5)*cH, gv=yMax-(gi/5)*(yMax-yMin);
+        ctx.strokeStyle=C.brd; ctx.lineWidth=0.5;
+        ctx.beginPath(); ctx.moveTo(PAD.l,gy); ctx.lineTo(PAD.l+cW,gy); ctx.stroke();
+        ctx.fillStyle=C.tx2; ctx.font='10px monospace'; ctx.textAlign='right';
+        ctx.fillText(Math.abs(gv)<10?gv.toFixed(1):Math.round(gv), PAD.l-5, gy+3.5);
+      }
+
+      // Trend line
+      var n=pts.length;
+      var sx=0,sy=0,sxy=0,sx2=0;
+      for(var ti=0;ti<n;ti++){sx+=ti;sy+=pts[ti].val;sxy+=ti*pts[ti].val;sx2+=ti*ti;}
+      var slope=(n*sxy-sx*sy)/(n*sx2-sx*sx||1);
+      var inter=(sy-slope*sx)/n;
+      ctx.strokeStyle=C.tx2+'88'; ctx.lineWidth=1.2; ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(xOf(0),yOf(inter)); ctx.lineTo(xOf(n-1),yOf(slope*(n-1)+inter)); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Area fill
+      ctx.beginPath(); ctx.moveTo(xOf(0),yOf(pts[0].val));
+      for(var ai=1;ai<n;ai++) ctx.lineTo(xOf(ai),yOf(pts[ai].val));
+      ctx.lineTo(xOf(n-1),PAD.t+cH); ctx.lineTo(xOf(0),PAD.t+cH); ctx.closePath();
+      ctx.fillStyle=C.ac+'28'; ctx.fill();
+
+      // Line
+      ctx.strokeStyle=C.ac; ctx.lineWidth=2.5; ctx.lineJoin='round';
+      ctx.beginPath();
+      for(var li=0;li<n;li++){ if(li===0) ctx.moveTo(xOf(0),yOf(pts[0].val)); else ctx.lineTo(xOf(li),yOf(pts[li].val)); }
+      ctx.stroke();
+
+      // Points + labels
+      for(var pi=0;pi<n;pi++){
+        var x=xOf(pi),y=yOf(pts[pi].val),col=pts[pi].isActual?C.gn:C.ac;
+        ctx.beginPath(); ctx.arc(x,y,pts[pi].isActual?6:4,0,Math.PI*2);
+        ctx.fillStyle=col; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.fill(); ctx.stroke();
+        ctx.fillStyle=col; ctx.font='bold 10px monospace'; ctx.textAlign='center';
+        ctx.fillText(Math.abs(pts[pi].val)<10?pts[pi].val.toFixed(1):Math.round(pts[pi].val),x,y-10);
+      }
+
+      // X labels
+      ctx.fillStyle=C.tx2; ctx.font='10px sans-serif'; ctx.textAlign='center';
+      for(var xi=0;xi<n;xi++){
+        ctx.save(); ctx.translate(xOf(xi),PAD.t+cH+14); ctx.rotate(-Math.PI/6);
+        ctx.fillText(pts[xi].date,0,0); ctx.restore();
+      }
+
+      // Title + trend arrow
+      var trendUp=slope>0.05, trendDn=slope<-0.05;
+      ctx.textAlign='left'; ctx.font='11px sans-serif'; ctx.fillStyle=C.tx2;
+      ctx.fillText(serie.label, PAD.l, 14);
+      ctx.fillStyle=trendUp?C.am:trendDn?C.gn:C.tx2;
+      ctx.font='bold 12px sans-serif';
+      ctx.fillText(trendUp?' ↑ sube':trendDn?' ↓ baja':' → estable', PAD.l+ctx.measureText(serie.label).width+2, 14);
+
+      // Table
+      var dir=trendUp?'↑ sube':trendDn?'↓ baja':'→ estable';
+      var rows='';
+      for(var ri=0;ri<pts.length;ri++){
+        var diff=ri===0?null:pts[ri].val-pts[ri-1].val;
+        var dStr=diff===null?'—':(diff>0?'+':'')+diff.toFixed(1);
+        var dCol=diff===null?'':diff>0?'color:'+C.am:'color:'+C.gn;
+        rows+='<tr style="border-bottom:1px solid #eee"><td style="padding:.15rem .4rem;'+(pts[ri].isActual?'font-weight:700;color:'+C.gn:'')+'">'+pts[ri].date+(pts[ri].isActual?' ●':'')+'</td><td style="font-family:monospace;font-weight:700;text-align:right;padding:.15rem .4rem">'+(Math.abs(pts[ri].val)<10?pts[ri].val.toFixed(1):Math.round(pts[ri].val))+'</td><td style="font-family:monospace;text-align:right;padding:.15rem .4rem;'+dCol+'">'+dStr+'</td></tr>';
+      }
+      tblEl.innerHTML='<div style="font-size:.6rem;color:'+C.tx2+';font-family:monospace;margin-bottom:.3rem">Tendencia: <strong>'+dir+'</strong> &nbsp;·&nbsp; Mín: <strong>'+Math.min.apply(null,vals).toFixed(1)+'</strong> &nbsp;·&nbsp; Máx: <strong>'+Math.max.apply(null,vals).toFixed(1)+'</strong> &nbsp;·&nbsp; Último: <strong>'+vals[vals.length-1].toFixed(1)+'</strong></div><table style="border-collapse:collapse;font-size:.65rem;width:100%"><thead><tr><th style="text-align:left;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Fecha</th><th style="text-align:right;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Valor</th><th style="text-align:right;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Δ</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    };
+  })();
+  </script>
         </div>
       </div>
     </div></div>
