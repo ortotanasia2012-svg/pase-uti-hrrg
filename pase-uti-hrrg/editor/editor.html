@@ -281,14 +281,17 @@ function newPatient(){
     // por sistemas
     neuro_tags:[], neuro_notes:'', neuro_alert:'', neuro_alert_type:'al-b',
     resp_mode:'', resp_peep:'', resp_fio2:'', resp_fr:'', resp_tot:'', resp_traqueo:'', resp_notes:'',
+    resp_pip:'', resp_pmean:'', resp_pplat:'', resp_pstat:'', resp_pdyn:'', resp_vt:'', resp_vm:'', resp_ti:'', resp_autopeep:'', resp_ri:'', resp_re:'',
+    resp_pressures_history:[], // [{date, label, peep, pip, pmean, pplat, vt, vm, fio2, fr}]
     hemo_ta:'', hemo_tam:'', hemo_fc:'', hemo_temp:'', hemo_notes:'', hemo_alert:'', hemo_alert_type:'al-a',
-    infec_notes:'', infec_cultivos:[],
+    hemo_drogas:[], // [{nombre, dosis_mcg, peso, vol, ml_h, limite_min, limite_max}]
+    infec_notes:'', infec_cultivos:[], // [{muestra, fecha, result, positivo, sensibilidad}]
     // EAB
     eab_cols:[
       {label:'AM', ph:'', pco2:'', po2:'', hco3:'', eb:'', sat:'', pafi:'', fio2:'', na:'', k:'', cl:''},
     ],
     // ATB
-    atb:[],
+    atb:[], // [{name, dose, freq, type, day, ajuste_renal, clearance_threshold}]
     // infusiones
     infusiones:[],
     // lab
@@ -592,15 +595,100 @@ function renderSistemasTab(p){
   </div></div>
 
   <div class="section"><div class="sec-header"><span class="sec-title">🔵 Ventilatorio</span></div><div class="sec-body">
+    <div class="lab-sh" style="margin-top:0">Configuración</div>
     <div class="fg fg-4">
-      ${f('resp_mode','Modo',p.resp_mode,'PCV/PSV/VCV')}
-      ${f('resp_peep','PEEP',p.resp_peep,'5')}
+      <div class="field"><label>Modo</label>
+        <select data-key="resp_mode" onchange="updateField('resp_mode',this.value)" style="background:var(--sur2);border:1px solid var(--brd);border-radius:4px;padding:.25rem .4rem;font-size:.72rem;color:var(--tx);outline:none;width:100%">
+          <option value="">—</option>
+          ${['VCV','PCV','PSV','SIMV','CPAP','HFNC','BiPAP','NIV'].map(m=>`<option value="${m}" ${p.resp_mode===m?'selected':''}>${m}</option>`).join('')}
+        </select>
+      </div>
       ${f('resp_fio2','FiO₂ %',p.resp_fio2,'40')}
-      ${f('resp_fr','FR',p.resp_fr,'16')}
-      ${f('resp_tot','Días TOT',p.resp_tot,'34')}
-      ${f('resp_traqueo','Traqueostomía D',p.resp_traqueo,'8')}
+      ${f('resp_fr','FR set',p.resp_fr,'16')}
+      ${f('resp_peep','PEEP',p.resp_peep,'5')}
+      ${f('resp_vt','VT (mL)',p.resp_vt,'')}
+      ${f('resp_vm','VM (L/min)',p.resp_vm,'')}
+      ${f('resp_ti','Ti (s)',p.resp_ti,'')}
+      ${f('resp_tot','Días TOT',p.resp_tot,'')}
+      ${f('resp_traqueo','Traqueostomía D',p.resp_traqueo,'')}
+    </div>
+
+    <div class="lab-sh">Presiones y mecánica respiratoria</div>
+    <div class="fg fg-4">
+      ${f('resp_pip','Pico (PIP)',p.resp_pip,'')}
+      ${f('resp_pplat','Plateau (Pplat)',p.resp_pplat,'')}
+      ${f('resp_pstat','P. Estática',p.resp_pstat,'')}
+      ${f('resp_pdyn','P. Dinámica',p.resp_pdyn,'')}
+      ${f('resp_pmean','P. Media',p.resp_pmean,'')}
+      ${f('resp_autopeep','Auto-PEEP',p.resp_autopeep,'')}
+    </div>
+
+    <div class="lab-sh">Resistencias calculadas
+      <span style="font-size:.5rem;color:var(--tx2);font-weight:400;margin-left:.4rem">
+        ${(()=>{
+          const pip=parseFloat(p.resp_pip||''), pplat=parseFloat(p.resp_pplat||''), peep=parseFloat(p.resp_peep||'');
+          const pstat=parseFloat(p.resp_pstat||pplat||''), pdyn=parseFloat(p.resp_pdyn||pip||'');
+          const vt=parseFloat(p.resp_vt||''), fr=parseFloat(p.resp_fr||'');
+          const autopeep=parseFloat(p.resp_autopeep||'0');
+          const fi = vt&&fr ? (vt*fr/1000/60).toFixed(2) : null;
+          const ri = (pip&&pplat&&fi) ? ((pip-pplat)/fi).toFixed(1)+' cmH₂O/L/s Ri ext' : null;
+          const rs = (pplat&&peep&&vt) ? (((pplat-peep)*1000)/vt).toFixed(2)+' cmH₂O/mL Compliance' : null;
+          const deltaP = (pplat&&peep) ? (pplat-peep).toFixed(1)+' cmH₂O ΔP' : null;
+          const autopeepStr = autopeep ? autopeep+' cmH₂O Auto-PEEP' : null;
+          return [ri,rs,deltaP,autopeepStr].filter(Boolean).join(' · ') || 'Completá PIP, Pplat, PEEP y VT para calcular';
+        })()}
+      </span>
+    </div>
+    <div class="fg fg-4">
+      ${f('resp_ri','R. Intrínseca (cmH₂O/L/s)',p.resp_ri,'')}
+      ${f('resp_re','R. Extrínseca (cmH₂O/L/s)',p.resp_re,'')}
+      <div class="field"><label>ΔP (driving pressure)</label>
+        <div style="padding:.25rem .4rem;background:var(--sur2);border:1px solid var(--brd);border-radius:4px;font-family:var(--mono);font-size:.72rem">
+          ${(()=>{
+            const pplat=parseFloat(p.resp_pplat||''), peep=parseFloat(p.resp_peep||'');
+            if(pplat&&peep!==undefined) {
+              const dp=pplat-peep;
+              const cls=dp>15?'color:var(--rd)':dp>13?'color:var(--am)':'color:var(--gn)';
+              return `<span style="${cls};font-weight:700">${dp.toFixed(1)}</span> <span style="font-size:.6rem;color:var(--tx2)">cmH₂O${dp>15?' ⚠ >15':''}`;
+            }
+            return '<span style="color:var(--tx2);font-size:.62rem">Completá Pplat y PEEP</span>';
+          })()}
+        </div>
+      </div>
+      <div class="field"><label>Compliance dinámica</label>
+        <div style="padding:.25rem .4rem;background:var(--sur2);border:1px solid var(--brd);border-radius:4px;font-family:var(--mono);font-size:.72rem">
+          ${(()=>{
+            const pip=parseFloat(p.resp_pip||''), peep=parseFloat(p.resp_peep||''), vt=parseFloat(p.resp_vt||'');
+            if(pip&&vt) {
+              const cdyn=vt/(pip-peep);
+              const cls=cdyn<25?'color:var(--rd)':cdyn<35?'color:var(--am)':'color:var(--gn)';
+              return `<span style="${cls};font-weight:700">${cdyn.toFixed(1)}</span> <span style="font-size:.6rem;color:var(--tx2)">mL/cmH₂O</span>`;
+            }
+            return '<span style="color:var(--tx2);font-size:.62rem">Completá PIP, PEEP y VT</span>';
+          })()}
+        </div>
+      </div>
+      <div class="field"><label>Compliance estática</label>
+        <div style="padding:.25rem .4rem;background:var(--sur2);border:1px solid var(--brd);border-radius:4px;font-family:var(--mono);font-size:.72rem">
+          ${(()=>{
+            const pplat=parseFloat(p.resp_pplat||''), peep=parseFloat(p.resp_peep||''), vt=parseFloat(p.resp_vt||'');
+            const autopeep=parseFloat(p.resp_autopeep||'0');
+            if(pplat&&vt) {
+              const cstat=vt/(pplat-(peep+autopeep));
+              const cls=cstat<25?'color:var(--rd)':cstat<35?'color:var(--am)':'color:var(--gn)';
+              return `<span style="${cls};font-weight:700">${cstat.toFixed(1)}</span> <span style="font-size:.6rem;color:var(--tx2)">mL/cmH₂O</span>`;
+            }
+            return '<span style="color:var(--tx2);font-size:.62rem">Completá Pplat, PEEP y VT</span>';
+          })()}
+        </div>
+      </div>
     </div>
     <div class="fg fg-1" style="margin-top:.4rem">${ft('resp_notes','Descripción',p.resp_notes)}</div>
+    <div class="sec-header" style="margin-top:.6rem;padding:0">
+      <span style="font-family:var(--mono);font-size:.5rem;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)">Historial de presiones</span>
+      <button class="btn btn-am" style="font-size:.5rem;padding:.15rem .35rem" onclick="saveRespSnapshot()">📷 Guardar</button>
+    </div>
+    ${renderRespHistory(p)}
   </div></div>
 
   <div class="section"><div class="sec-header"><span class="sec-title">🔴 Hemodinámico</span></div><div class="sec-body">
@@ -612,6 +700,14 @@ function renderSistemasTab(p){
     </div>
     <div class="fg fg-1" style="margin-top:.4rem">${ft('hemo_notes','Descripción',p.hemo_notes)}</div>
     <div style="margin-top:.4rem">${fa('hemo_alert','hemo_alert_type',p.hemo_alert,p.hemo_alert_type)}</div>
+    <div class="sec-header" style="margin-top:.7rem;padding:0">
+      <span style="font-family:var(--mono);font-size:.5rem;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2)">Calculador de gammas (μg/kg/min)</span>
+      <button class="btn btn-gn" style="font-size:.5rem;padding:.15rem .35rem" onclick="addDroga()">+ Droga</button>
+    </div>
+    <div style="font-size:.6rem;color:var(--tx2);margin:.25rem 0 .4rem">
+      Peso del paciente: <input type="number" value="${escHtml(p.peso||'')}" placeholder="kg" style="width:55px;background:var(--sur2);border:1px solid var(--brd);border-radius:4px;padding:.18rem .3rem;font-size:.65rem;color:var(--tx);outline:none" oninput="updateField('peso',this.value);recalcGammas()">
+    </div>
+    <div id="drogas-list">${renderDrogas(p)}</div>
   </div></div>
 
   <div class="section"><div class="sec-header"><span class="sec-title">🟠 Infectológico</span></div><div class="sec-body">
@@ -1268,16 +1364,51 @@ function renderATBTab(p){
 
 function renderATBList(list){
   const types=[{v:'abxd',l:'Normal'},{v:'abxd-r',l:'Alerta'},{v:'abxd-g',l:'OK'},{v:'abxd-o',l:'Nuevo'}];
-  return list.map((item,i)=>`
-    <div class="list-row">
-      <input value="${item.name||''}" placeholder="Nombre (ej: PTZ 4.5 g)" oninput="updateATB(${i},'name',this.value)">
-      <input value="${item.day||''}" placeholder="Día / frecuencia" class="day-inp" oninput="updateATB(${i},'day',this.value)">
-      <select onchange="updateATB(${i},'type',this.value)" style="width:80px;background:var(--sur2);color:var(--tx);border:1px solid var(--brd);border-radius:4px;font-size:.65rem;padding:.2rem">
-        ${types.map(t=>`<option value="${t.v}" ${item.type===t.v?'selected':''}>${t.l}</option>`).join('')}
-      </select>
-      <button class="del" onclick="removeATB(${i})">✕</button>
-    </div>
-  `).join('');
+  // Common ATBs with renal threshold (FG mL/min below which adjustment needed)
+  const ATB_RENAL = {
+    'Ampicilina':30,'Amoxicilina':30,'AMX-CL':30,'Piperacilina-Tazobactam':20,
+    'PTZ':20,'Cefazolina':35,'Cefalexina':30,'Ceftriaxona':null,'Cefepime':30,
+    'Meropenem':30,'Imipenem':30,'Ertapenem':30,'Ciprofloxacina':30,
+    'Levofloxacina':20,'TMP-SMX':30,'Vancomicina':50,'Linezolid':null,
+    'Metronidazol':null,'Clindamicina':null,'Amikacina':50,'Gentamicina':50,
+    'Colistina':50,'Fluconazol':50,'Voriconazol':null,'Aciclovir':25,
+    'Daptomicina':30,'Tigeciclina':null,'Azitromicina':null,'Claritromicina':30,
+  };
+  return list.map((item,i)=>{
+    // Check if renal adjustment needed
+    const p = getPatient();
+    const egfr = calcEGFR(p);
+    const threshold = ATB_RENAL[item.name];
+    const needsAdj = threshold!==null && egfr!==null && egfr < threshold;
+    const unknownAdj = threshold!==null && egfr===null;
+    return `<div class="atb-row ${needsAdj?'atb-renal-alert':''}">
+      <div class="list-row" style="flex-wrap:wrap;gap:.3rem">
+        <input value="${escHtml(item.name||'')}" placeholder="ATB (ej: Meropenem)" style="flex:2;min-width:120px" list="atb-list-${i}" oninput="updateATB(${i},'name',this.value)">
+        <datalist id="atb-list-${i}">${Object.keys(ATB_RENAL).map(n=>`<option value="${n}">`).join('')}</datalist>
+        <input value="${escHtml(item.dose||'')}" placeholder="Dosis (ej: 1g)" style="flex:1;min-width:60px" oninput="updateATB(${i},'dose',this.value)">
+        <input value="${escHtml(item.freq||'')}" placeholder="Frecuencia (ej: c/8h)" style="flex:1;min-width:80px" oninput="updateATB(${i},'freq',this.value)">
+        <input value="${escHtml(item.day||'')}" placeholder="Día" style="width:55px;flex:none" oninput="updateATB(${i},'day',this.value)">
+        <select onchange="updateATB(${i},'type',this.value)" style="width:72px;background:var(--sur2);color:var(--tx);border:1px solid var(--brd);border-radius:4px;font-size:.62rem;padding:.2rem">
+          ${types.map(t=>`<option value="${t.v}" ${item.type===t.v?'selected':''}>${t.l}</option>`).join('')}
+        </select>
+        <button class="del" onclick="removeATB(${i})">✕</button>
+      </div>
+      ${needsAdj?`<div style="font-size:.6rem;color:var(--rd);font-family:var(--mono);margin-top:.2rem">⚠ Ajuste renal requerido — FG estimado ${egfr} mL/min (umbral: ${threshold} mL/min)</div>`:''}
+      ${unknownAdj?`<div style="font-size:.6rem;color:var(--am);font-family:var(--mono);margin-top:.2rem">⚠ Requiere ajuste renal — cargá creatinina, edad y sexo para calcular FG</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function calcEGFR(p){
+  if(!p) return null;
+  const creat = parseFloat((p.lab||{}).creat||'');
+  const age   = parseFloat(p.age||'');
+  const sex   = (p.sex||'').toUpperCase();
+  if(!creat||!age) return null;
+  const isFemale = sex==='F';
+  const k=isFemale?0.7:0.9, a=isFemale?-0.241:-0.302;
+  const scr_k=creat/k;
+  return Math.round(142*(Math.min(scr_k,1)**a)*(Math.max(scr_k,1)**(-1.200))*(0.9938**age)*(isFemale?1.012:1.0));
 }
 
 // ─── PENDIENTES ───────────────────────────────
@@ -1357,16 +1488,155 @@ function renderTimelineItems(list){
 }
 
 function renderCultivos(list){
-  const rOpts=['neg','pend','ns'].map(v=>`<option value="${v}">${v==='neg'?'Negativo':v==='pend'?'Pendiente':'No significativo'}</option>`).join('');
-  return (list||[]).map((c,i)=>`
-    <div class="list-row">
-      <input value="${escHtml(c.muestra||'')}" placeholder="Muestra" oninput="updateCultivo(${i},'muestra',this.value)">
-      <input value="${escHtml(c.fecha||'')}" placeholder="Fecha" style="width:70px;flex:none" oninput="updateCultivo(${i},'fecha',this.value)">
-      <input value="${escHtml(c.result||'')}" placeholder="Resultado" oninput="updateCultivo(${i},'result',this.value)">
-      <button class="del" onclick="removeCultivo(${i})">✕</button>
-    </div>
-  `).join('');
+  return (list||[]).map((c,i)=>{
+    const isPos = c.positivo===true||(c.result&&c.result.toLowerCase()!=='negativo'&&c.result.toLowerCase()!=='pendiente'&&c.result.toLowerCase()!=='ns'&&c.result.toLowerCase()!=='no significativo'&&c.result!=='');
+    const manualPos = c.positivo===true;
+    return `<div class="cult-row ${manualPos?'cult-positivo':''}" style="margin-bottom:.5rem;border-left:3px solid ${manualPos?'var(--rd)':'var(--brd)'};padding-left:.5rem">
+      <div class="list-row" style="margin-bottom:${manualPos?'.3rem':'0'}">
+        <input value="${escHtml(c.muestra||'')}" placeholder="Muestra" style="flex:1.2" oninput="updateCultivo(${i},'muestra',this.value)">
+        <input value="${escHtml(c.fecha||'')}" placeholder="Fecha" style="width:65px;flex:none" oninput="updateCultivo(${i},'fecha',this.value)">
+        <input value="${escHtml(c.result||'')}" placeholder="Resultado / germen" style="flex:1.5" oninput="updateCultivo(${i},'result',this.value)">
+        <label style="display:flex;align-items:center;gap:.2rem;font-size:.62rem;color:var(--rd);white-space:nowrap;cursor:pointer">
+          <input type="checkbox" ${manualPos?'checked':''} onchange="toggleCultivoPos(${i},this.checked)"> Positivo
+        </label>
+        <button class="del" onclick="removeCultivo(${i})">✕</button>
+      </div>
+      ${manualPos?`<div style="margin-top:.2rem">
+        <div style="font-size:.58rem;color:var(--tx2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.2rem">Sensibilidad (ATB: S/I/R o texto libre)</div>
+        <textarea rows="2" style="width:100%;background:var(--sur2);border:1px solid var(--brd);border-radius:4px;font-size:.65rem;font-family:var(--mono);padding:.25rem .4rem;color:var(--tx);resize:vertical;outline:none;box-sizing:border-box" placeholder="Ej: AMS S, PTZ R, MEM S, AMK S..." oninput="updateCultivo(${i},'sensibilidad',this.value)">${escHtml(c.sensibilidad||'')}</textarea>
+      </div>`:''}
+    </div>`;
+  }).join('');
 }
+
+// ─── RESP PRESSURE HISTORY ────────────────────
+function renderRespHistory(p){
+  const hist = p.resp_pressures_history||[];
+  if(!hist.length) return `<div style="font-size:.62rem;color:var(--tx2);margin-top:.3rem">Sin registros. Completá los parámetros y tocá 📷 Guardar.</div>`;
+  const hdrs = ['Fecha','Modo','FiO₂','FR','PEEP','Pico','Pplat','P.Est','P.Din','P.Media','Auto-PEEP','ΔP','Ri','Re','Cdyn','Cstat','VT','VM'];
+  return `<div style="overflow-x:auto;margin-top:.3rem">
+    <table style="border-collapse:collapse;font-size:.62rem;width:100%">
+      <thead><tr style="border-bottom:1px solid var(--brd)">
+        ${hdrs.map(h=>`<th style="font-family:var(--mono);font-size:.46rem;text-transform:uppercase;color:var(--tx2);text-align:left;padding:.15rem .28rem;white-space:nowrap">${h}</th>`).join('')}
+        <th></th>
+      </tr></thead>
+      <tbody>${hist.map((r,i)=>{
+        const pip=parseFloat(r.pip||''), pplat=parseFloat(r.pplat||'');
+        const peep=parseFloat(r.peep||''), vt=parseFloat(r.vt||'');
+        const fr=parseFloat(r.fr||''), ap=parseFloat(r.autopeep||'0');
+        const fi = (vt&&fr) ? vt*fr/1000/60 : null;
+        // ΔP
+        const dp = (pplat&&!isNaN(peep)) ? pplat-peep : null;
+        const dpCls = dp>15?'color:var(--rd)':dp>13?'color:var(--am)':'color:var(--gn)';
+        // Resistencias
+        const ri_c = (pip&&pplat&&fi) ? ((pip-pplat)/fi).toFixed(1) : null;
+        const re_c = r.re || null;
+        // Compliance
+        const cdyn = (pip&&vt&&!isNaN(peep)) ? (vt/(pip-peep)).toFixed(1) : null;
+        const cstat= (pplat&&vt) ? (vt/(pplat-(peep+ap))).toFixed(1) : null;
+        const cdynCls = cdyn&&parseFloat(cdyn)<25?'color:var(--rd)':cdyn&&parseFloat(cdyn)<35?'color:var(--am)':'color:var(--gn)';
+        const cstatCls= cstat&&parseFloat(cstat)<25?'color:var(--rd)':cstat&&parseFloat(cstat)<35?'color:var(--am)':'color:var(--gn)';
+        const td = (v,cls='') => `<td style="font-family:var(--mono);padding:.15rem .28rem;${cls}">${v||'—'}</td>`;
+        return `<tr style="border-bottom:1px solid var(--sur3)">
+          ${td(r.label||r.date)}
+          ${td(r.mode||'')}
+          ${td(r.fio2||'')}
+          ${td(r.fr||'')}
+          ${td(r.peep||'')}
+          ${td(r.pip||'')}
+          ${td(r.pplat||'')}
+          ${td(r.pstat||'')}
+          ${td(r.pdyn||'')}
+          ${td(r.pmean||'')}
+          ${td(r.autopeep||'')}
+          ${dp!==null?`<td style="font-family:var(--mono);padding:.15rem .28rem;font-weight:700;${dpCls}">${dp.toFixed(1)}</td>`:td('')}
+          ${ri_c?`<td style="font-family:var(--mono);padding:.15rem .28rem">${escHtml(r.ri||ri_c)}</td>`:td(r.ri||'')}
+          ${td(r.re||'')}
+          ${cdyn?`<td style="font-family:var(--mono);padding:.15rem .28rem;font-weight:700;${cdynCls}">${cdyn}</td>`:td('')}
+          ${cstat?`<td style="font-family:var(--mono);padding:.15rem .28rem;font-weight:700;${cstatCls}">${cstat}</td>`:td('')}
+          ${td(r.vt||'')}
+          ${td(r.vm||'')}
+          <td><button class="lhist-btn lhist-del" onclick="deleteRespSnapshot(${i})">✕</button></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  </div>`;
+}
+
+function saveRespSnapshot(){
+  flushInputs();
+  const p=getPatient(); if(!p) return;
+  const today=new Date().toISOString().slice(0,10);
+  const label=prompt('Etiqueta (opcional):',today); if(label===null) return;
+  p.resp_pressures_history=p.resp_pressures_history||[];
+  p.resp_pressures_history.unshift({
+    date:today,label:label||today,
+    mode:p.resp_mode,fio2:p.resp_fio2,fr:p.resp_fr,peep:p.resp_peep,
+    pip:p.resp_pip,pmean:p.resp_pmean,pplat:p.resp_pplat,pstat:p.resp_pstat,
+    pdyn:p.resp_pdyn,autopeep:p.resp_autopeep,ri:p.resp_ri,re:p.resp_re,
+    vt:p.resp_vt,vm:p.resp_vm,ti:p.resp_ti
+  });
+  saveData(); renderEditor(); toast('Parámetros respiratorios guardados ✓');
+}
+function deleteRespSnapshot(i){ flushInputs(); const p=getPatient(); if(!p) return; p.resp_pressures_history.splice(i,1); saveData(); renderEditor(); }
+
+// ─── CULTIVOS HELPERS ─────────────────────────
+function toggleCultivoPos(i, val){
+  flushInputs();
+  const p=getPatient(); if(!p) return;
+  p.infec_cultivos[i].positivo=val;
+  saveData(); renderEditor();
+}
+
+// ─── GAMMA CALCULATOR ─────────────────────────
+const GAMMA_DRUGS = {
+  'Noradrenalina':    {unit:'μg/kg/min', min:0.01, max:3.0,   conc_std:'4mg/50mL'},
+  'Adrenalina':       {unit:'μg/kg/min', min:0.01, max:1.0,   conc_std:'4mg/50mL'},
+  'Dobutamina':       {unit:'μg/kg/min', min:2.5,  max:20,    conc_std:'250mg/50mL'},
+  'Dopamina':         {unit:'μg/kg/min', min:2,    max:20,    conc_std:'200mg/50mL'},
+  'Vasopresina':      {unit:'U/h',       min:0.01, max:0.04,  conc_std:'20U/50mL'},
+  'Milrinona':        {unit:'μg/kg/min', min:0.375,max:0.75,  conc_std:'10mg/50mL'},
+  'Nitroglicerina':   {unit:'μg/kg/min', min:0.5,  max:10,    conc_std:'50mg/50mL'},
+  'Nitroprusiato':    {unit:'μg/kg/min', min:0.3,  max:10,    conc_std:'50mg/50mL'},
+};
+
+function renderDrogas(p){
+  const drogas = p.hemo_drogas||[];
+  const peso = parseFloat(p.peso||0);
+  if(!drogas.length) return '<div style="font-size:.62rem;color:var(--tx2)">Sin drogas vasoactivas cargadas.</div>';
+  return drogas.map((d,i)=>{
+    const info = GAMMA_DRUGS[d.nombre]||{};
+    // Calculate gamma from ml/h
+    // gamma (μg/kg/min) = (ml_h * conc_mg_ml * 1000) / (peso * 60)
+    let gamma = null, outOfRange = false;
+    const mlH = parseFloat(d.ml_h||0);
+    const concMgMl = parseFloat(d.conc_mg_ml||0);
+    if(mlH && concMgMl && peso){
+      gamma = (mlH * concMgMl * 1000) / (peso * 60);
+      if(info.min!==undefined && info.max!==undefined)
+        outOfRange = gamma < info.min || gamma > info.max;
+    }
+    return `<div class="droga-row ${outOfRange?'droga-alert':''}">
+      <div style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center">
+        <select onchange="updateDroga(${i},'nombre',this.value)" style="flex:1.5;min-width:110px;background:var(--sur2);border:1px solid var(--brd);border-radius:4px;padding:.25rem .35rem;font-size:.68rem;color:var(--tx);outline:none">
+          <option value="">— Droga —</option>
+          ${Object.keys(GAMMA_DRUGS).map(n=>`<option value="${n}" ${d.nombre===n?'selected':''}>${n}</option>`).join('')}
+        </select>
+        <input value="${escHtml(d.conc_mg_ml||'')}" placeholder="mg/mL conc" style="width:80px;flex:none" type="number" step="0.01" oninput="updateDroga(${i},'conc_mg_ml',this.value)">
+        <input value="${escHtml(d.ml_h||'')}" placeholder="mL/h" style="width:65px;flex:none" type="number" step="0.1" oninput="updateDroga(${i},'ml_h',this.value)">
+        ${gamma!==null?`<span style="font-family:var(--mono);font-size:.72rem;font-weight:700;color:${outOfRange?'var(--rd)':'var(--gn)'};white-space:nowrap">
+          ${gamma.toFixed(3)} ${info.unit||'μg/kg/min'}${outOfRange?` ⚠ (rango: ${info.min}-${info.max})`:''}
+        </span>`:'<span style="font-size:.6rem;color:var(--tx2)">cargá conc+mL/h+peso</span>'}
+        <button class="del" onclick="removeDroga(${i})">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addDroga(){ flushInputs(); const p=getPatient(); if(!p) return; p.hemo_drogas=p.hemo_drogas||[]; p.hemo_drogas.push({nombre:'',conc_mg_ml:'',ml_h:''}); renderEditor(); }
+function updateDroga(i,field,val){ const p=getPatient(); if(!p) return; p.hemo_drogas=p.hemo_drogas||[]; p.hemo_drogas[i][field]=val; saveData(); recalcGammas(); }
+function removeDroga(i){ flushInputs(); const p=getPatient(); if(!p) return; p.hemo_drogas.splice(i,1); renderEditor(); }
+function recalcGammas(){ const p=getPatient(); if(!p) return; const el=document.getElementById('drogas-list'); if(el) el.innerHTML=renderDrogas(p); }
 
 // ═══════════════════════════════════════════════
 //  DATA UPDATERS
@@ -1702,7 +1972,7 @@ function addInfusion(){ flushInputs(); const p=getPatient(); if(!p) return; p.in
 function updateInfusion(i,field,val){ const p=getPatient(); if(!p) return; p.infusiones[i][field]=val; saveData(); }
 function removeInfusion(i){ flushInputs(); const p=getPatient(); if(!p) return; p.infusiones.splice(i,1); renderEditor(); }
 
-function addATB(){ flushInputs(); const p=getPatient(); if(!p) return; p.atb=p.atb||[]; p.atb.push({name:'',day:'',type:'abxd'}); renderEditor(); }
+function addATB(){ flushInputs(); const p=getPatient(); if(!p) return; p.atb=p.atb||[]; p.atb.push({name:'',dose:'',freq:'',day:'',type:'abxd'}); renderEditor(); }
 function updateATB(i,field,val){ const p=getPatient(); if(!p) return; p.atb[i][field]=val; saveData(); }
 function removeATB(i){ flushInputs(); const p=getPatient(); if(!p) return; p.atb.splice(i,1); renderEditor(); }
 
@@ -1747,9 +2017,7 @@ function addInfusion(){ flushInputs(); const p=getPatient(); if(!p) return; p.in
 function updateInfusion(i,field,val){ const p=getPatient(); if(!p) return; p.infusiones[i][field]=val; saveData(); }
 function removeInfusion(i){ flushInputs(); const p=getPatient(); if(!p) return; p.infusiones.splice(i,1); renderEditor(); }
 
-function addATB(){ flushInputs(); const p=getPatient(); if(!p) return; p.atb=p.atb||[]; p.atb.push({name:'',day:'',type:'abxd'}); renderEditor(); }
-function updateATB(i,field,val){ const p=getPatient(); if(!p) return; p.atb[i][field]=val; saveData(); }
-function removeATB(i){ flushInputs(); const p=getPatient(); if(!p) return; p.atb.splice(i,1); renderEditor(); }
+
 
 function addPend(){ flushInputs(); const p=getPatient(); if(!p) return; p.pendientes=p.pendientes||[]; p.pendientes.push({text:'',color:'pp2'}); renderEditor(); }
 function updatePend(i,field,val){ const p=getPatient(); if(!p) return; p.pendientes[i][field]=val; saveData(); }
@@ -2098,10 +2366,10 @@ function exportHTML(){
 
   patients.forEach((p,idx)=>{
     const active = idx===0?' active':'';
+    const nameShort = (p.name||'Sin nombre').split(',')[0].trim();
     tabs += `<button class="tb${active}" onclick="showTab(${idx})">
-      <span class="bl">Cama ${escHtml(p.bed||'—')}</span>
-      <span class="bn">${escHtml(p.name||'Sin nombre')}</span>
-      <span class="ba">${escHtml(p.age||'')}${p.sex?' · '+p.sex:''} · Int.D${escHtml(p.days_int||'?')}</span>
+      <span class="tb-name">${escHtml(nameShort)}</span>
+      <span class="tb-meta"><span class="tb-bed">C${escHtml(p.bed||'—')}</span>${p.days_int?`<span class="tb-day">D${escHtml(p.days_int)}</span>`:''}</span>
     </button>`;
 
     panels += `<div class="panel${active}" id="panel-${idx}">
@@ -2224,9 +2492,88 @@ function exportHTML(){
             ${p.infec_cultivos&&p.infec_cultivos.length?`
             <div class="sh sh-cult g6"><span class="sd"></span>Cultivos</div>
             <table class="cult-t">
-              <tr><th>Muestra</th><th>Fecha</th><th>Resultado</th></tr>
-              ${p.infec_cultivos.map(c=>`<tr><td>${escHtml(c.muestra||'')}</td><td>${escHtml(c.fecha||'')}</td><td>${escHtml(c.result||'')}</td></tr>`).join('')}
+              <tr><th>Muestra</th><th>Fecha</th><th>Resultado</th><th>Sensibilidad</th></tr>
+              ${p.infec_cultivos.map(c=>`<tr style="${c.positivo?'background:rgba(220,50,50,.07);border-left:3px solid var(--rd)':''}">
+                <td style="${c.positivo?'font-weight:700;color:var(--rd)':''}">${escHtml(c.muestra||'')}${c.positivo?' 🔴':''}</td>
+                <td>${escHtml(c.fecha||'')}</td>
+                <td style="${c.positivo?'font-weight:600':''}">${escHtml(c.result||'')}</td>
+                <td style="font-size:.62rem;white-space:pre-wrap">${escHtml(c.sensibilidad||'')}</td>
+              </tr>`).join('')}
             </table>`:''}
+
+            ${p.hemo_drogas&&p.hemo_drogas.length?`
+            <div class="sh sh-hemo g6" style="margin-top:.5rem"><span class="sd"></span>Drogas vasoactivas</div>
+            <table class="cult-t">
+              <tr><th>Droga</th><th>Conc (mg/mL)</th><th>Velocidad (mL/h)</th><th>Gamma</th></tr>
+              ${p.hemo_drogas.map(d=>{
+                const info = {
+                  'Noradrenalina':{min:0.01,max:3,unit:'μg/kg/min'},'Adrenalina':{min:0.01,max:1,unit:'μg/kg/min'},
+                  'Dobutamina':{min:2.5,max:20,unit:'μg/kg/min'},'Dopamina':{min:2,max:20,unit:'μg/kg/min'},
+                  'Vasopresina':{min:0.01,max:0.04,unit:'U/h'},'Milrinona':{min:0.375,max:0.75,unit:'μg/kg/min'},
+                }[d.nombre]||{};
+                const peso=parseFloat(p.peso||0);
+                const mlH=parseFloat(d.ml_h||0), concMgMl=parseFloat(d.conc_mg_ml||0);
+                let gammaStr='—'; let alert=false;
+                if(mlH&&concMgMl&&peso){
+                  const g=(mlH*concMgMl*1000)/(peso*60);
+                  gammaStr=g.toFixed(3)+' '+(info.unit||'μg/kg/min');
+                  if(info.min!==undefined) alert=g<info.min||g>info.max;
+                }
+                return `<tr><td style="font-weight:600">${escHtml(d.nombre||'')}</td><td>${escHtml(d.conc_mg_ml||'—')}</td><td>${escHtml(d.ml_h||'—')}</td><td style="font-weight:700;color:${alert?'var(--rd)':'var(--gn)'}">${gammaStr}${alert?' ⚠':''}</td></tr>`;
+              }).join('')}
+            </table>`:''}
+
+            ${p.resp_pressures_history&&p.resp_pressures_history.length?`
+            <div class="sh sh-resp g6" style="margin-top:.5rem;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===''?'none':''"><span class="sd"></span>Historial respiratorio ▼</div>
+            <div style="overflow-x:auto">
+              <table class="cult-t">
+                <tr><th>Fecha</th><th>Modo</th><th>FiO₂</th><th>FR</th><th>PEEP</th><th>Pico</th><th>Pplat</th><th>P.Est</th><th>P.Din</th><th>P.Media</th><th>Auto-PEEP</th><th>ΔP</th><th>Ri</th><th>Re</th><th>Cdyn</th><th>Cstat</th><th>VT</th><th>VM</th></tr>
+                ${p.resp_pressures_history.map(r=>{
+                  const pip=parseFloat(r.pip||''), pplat=parseFloat(r.pplat||'');
+                  const peep=parseFloat(r.peep||''), vt=parseFloat(r.vt||'');
+                  const fr=parseFloat(r.fr||''), ap=parseFloat(r.autopeep||'0');
+                  const fi=(vt&&fr)?vt*fr/1000/60:null;
+                  const dp=(pplat&&!isNaN(peep))?(pplat-peep).toFixed(1):'—';
+                  const dpCls=parseFloat(dp)>15?'color:var(--rd)':parseFloat(dp)>13?'color:var(--am)':'';
+                  const ri_c=(pip&&pplat&&fi)?((pip-pplat)/fi).toFixed(1):'';
+                  const cdyn=(pip&&vt&&!isNaN(peep))?(vt/(pip-peep)).toFixed(1):'';
+                  const cstat=(pplat&&vt)?(vt/(pplat-(peep+ap))).toFixed(1):'';
+                  const cdynCls=parseFloat(cdyn)<25?'color:var(--rd)':parseFloat(cdyn)<35?'color:var(--am)':'';
+                  const cstatCls=parseFloat(cstat)<25?'color:var(--rd)':parseFloat(cstat)<35?'color:var(--am)':'';
+                  const td=v=>`<td>${escHtml(v||'—')}</td>`;
+                  return `<tr>
+                    ${td(r.label||r.date)}${td(r.mode)}${td(r.fio2)}${td(r.fr)}${td(r.peep)}
+                    ${td(r.pip)}${td(r.pplat)}${td(r.pstat)}${td(r.pdyn)}${td(r.pmean)}${td(r.autopeep)}
+                    <td style="font-weight:700;${dpCls}">${dp}</td>
+                    <td>${escHtml(r.ri||ri_c||'—')}</td>${td(r.re)}
+                    <td style="font-weight:700;${cdynCls}">${cdyn||'—'}</td>
+                    <td style="font-weight:700;${cstatCls}">${cstat||'—'}</td>
+                    ${td(r.vt)}${td(r.vm)}
+                  </tr>`;
+                }).join('')}
+              </table>
+            </div>`:''}
+
+            ${p.infec_notes?`
+            <div class="sh sh-infec g6"><span class="sd"></span>Infectológico</div>
+            <div class="note">${escHtml(p.infec_notes)}</div>`:''}
+
+            ${p.atb&&p.atb.length?`
+            <div class="sh sh-infec g6" style="margin-top:.4rem"><span class="sd"></span>Antibioticoterapia</div>
+            ${p.atb.map(a=>{
+              const calcATBEGFR = (()=>{
+                const creat=parseFloat((p.lab||{}).creat||''), age=parseFloat(p.age||''), sex=(p.sex||'').toUpperCase();
+                if(!creat||!age) return null;
+                const f=sex==='F'; const k=f?0.7:0.9,al=f?-0.241:-0.302; const sk=creat/k;
+                return Math.round(142*(Math.min(sk,1)**al)*(Math.max(sk,1)**(-1.200))*(0.9938**age)*(f?1.012:1.0));
+              })();
+              const ATB_R={'Piperacilina-Tazobactam':20,'PTZ':20,'Cefepime':30,'Meropenem':30,'Imipenem':30,'Ciprofloxacina':30,'Levofloxacina':20,'TMP-SMX':30,'Vancomicina':50,'Amikacina':50,'Gentamicina':50,'Colistina':50};
+              const thr=ATB_R[a.name]; const needAdj=thr&&calcATBEGFR!==null&&calcATBEGFR<thr;
+              return `<div class="abx" style="${needAdj?'color:var(--rd)':''}">
+                <span class="abxn">${escHtml(a.name||'')}${a.dose?' — '+escHtml(a.dose):''}${a.freq?' '+escHtml(a.freq):''}${needAdj?` <span style="font-size:.55rem;background:var(--rdl);padding:.05rem .3rem;border-radius:8px">⚠ Ajuste renal (FG ${calcATBEGFR} mL/min)</span>`:''}</span>
+                <span class="${escHtml(a.type||'abxd')}">${escHtml(a.day||'')}</span>
+              </div>`;
+            }).join('')}`:''}
 
             ${renderLabSection(p)}
 
@@ -2313,6 +2660,8 @@ function exportHTML(){
           <div class="card"><div class="ct">Notas / Comentarios</div><div class="cb">
             <div class="note" style="white-space:pre-wrap">${escHtml(p.notes)}</div>
           </div></div>`:''}
+
+          ${renderCurvasForExport(p, idx)}
         </div>
       </div>
     </div>`;
@@ -2328,6 +2677,187 @@ function exportHTML(){
   a.download = `UCI_${date||'guardia'}.html`;
   a.click();
   toast('HTML exportado ✓');
+}
+
+// ═══════════════════════════════════════════════
+//  CURVAS → EXPORT (canvas estático inline)
+// ═══════════════════════════════════════════════
+function renderCurvasForExport(p, patIdx){
+  // Collect all series that have ≥2 data points
+  const allFields = [
+    ...[ ['hb','Hb (g/dL)'],['hcto','Hcto (%)'],['gb','GB (×1000)'],['plaq','Plaquetas'],['vsg','VSG'],
+         ['neutro','Neutrófilos %'],['linfo','Linfocitos %'],['cayados','Cayados %'],
+         ['glucosa','Glucosa'],['urea','Urea'],['creat','Creatinina'],['lac','Lactato'],
+         ['na','Sodio'],['k','Potasio'],['cl','Cloro'],['ca','Calcio'],['mg','Magnesio'],
+         ['ck_total','CK Total'],['ck_mb','CK MB'],['ldh','LDH'],['troponina','Troponina'],
+         ['got','GOT'],['gpt','GPT'],['falc','F.ALC'],['bili_t','Bili Total'],['albumina','Albúmina'],
+         ['tp','TP'],['kptt','KPTT'],['dimero_d','Dímero D'],['fibrinogeno','Fibrinógeno'],['clearance','Clearance Creat.'],
+    ].map(([k,l])=>({source:'lab',key:k,label:l})),
+    ...[ ['pafi','PAFI'],['ph','pH'],['pco2','pCO₂'],['po2','pO₂'],['hco3','HCO₃'],
+         ['eb','EB'],['sat','SatO₂'],['fio2','FiO₂'],['na','Na⁺'],['k','K⁺'],
+    ].map(([k,l])=>({source:'eab',key:k,label:l})),
+    ...[ ['ing','Ingresos (mL)'],['egr_diur','Diuresis (mL)'],['egr_sng','SNG (mL)'],
+         ['egr_dren','Drenajes (mL)'],['egr_mf','MF (mL)'],['balance','Balance (mL)'],
+    ].map(([k,l])=>({source:'bal24',key:k,label:l})),
+  ];
+
+  function getExportPts(source, key){
+    const pts=[];
+    if(source==='lab'){
+      const hist=[...(p.lab_history||[])].reverse();
+      hist.forEach(h=>{const v=parseFloat((h.lab||{})[key]);if(!isNaN(v))pts.push({date:h.label||h.date,val:v,isActual:false});});
+      const cur=parseFloat((p.lab||{})[key]);
+      if(!isNaN(cur))pts.push({date:'Actual',val:cur,isActual:true});
+    } else if(source==='eab'){
+      (p.eab_cols||[]).forEach(col=>{const v=parseFloat(col[key]);if(!isNaN(v))pts.push({date:col.label||'—',val:v,isActual:false});});
+    } else {
+      const hist=[...(p.bal_history||[])].reverse();
+      hist.forEach(h=>{const b=h.bal_24||{};const v=key==='balance'?(parseFloat(b.ing)||0)-calcTotalEgr(b):parseFloat(b[key]);if(!isNaN(v))pts.push({date:h.label||h.date,val:v,isActual:false});});
+      const b=p.bal_24||{};
+      const cur=key==='balance'?(parseFloat(b.ing)||0)-calcTotalEgr(b):parseFloat(b[key]);
+      if(!isNaN(cur)&&cur)pts.push({date:'Actual',val:cur,isActual:true});
+    }
+    return pts;
+  }
+
+  const series = allFields.map(f=>({...f, pts:getExportPts(f.source,f.key)})).filter(f=>f.pts.length>=2);
+  if(!series.length) return '';
+
+  // Serialize series data as JSON embedded in a <script> inside the exported HTML
+  // Each canvas is drawn by a tiny inline script that runs after load
+  const seriesJson = JSON.stringify(series.map(s=>({label:s.label, pts:s.pts})));
+  const uid = 'p'+patIdx;
+
+  return `
+  <div class="card" id="curvas-card-${uid}">
+    <div class="ct" style="display:flex;align-items:center;gap:.5rem;cursor:pointer" onclick="toggleCurvas_${uid}()">
+      📈 Curvas de tendencia
+      <span id="curvas-arrow-${uid}" style="font-size:.6rem;color:var(--mu);margin-left:auto">▼ mostrar</span>
+    </div>
+    <div class="cb" id="curvas-body-${uid}" style="display:none">
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.6rem;align-items:center">
+        <span style="font-size:.6rem;color:var(--mu);font-family:var(--mono)">Parámetro:</span>
+        <select id="curvas-sel-${uid}" onchange="drawCurva_${uid}()" style="background:var(--sur2,#f6f9fc);border:1px solid var(--brd,#dde5ef);border-radius:5px;padding:.22rem .38rem;font-size:.66rem;color:var(--tx,#182030);outline:none;max-width:220px"></select>
+      </div>
+      <canvas id="curvas-cv-${uid}" style="width:100%;display:block"></canvas>
+      <div id="curvas-tbl-${uid}" style="margin-top:.6rem;overflow-x:auto;font-size:.65rem"></div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var SERIES = ${seriesJson};
+    var uid = '${uid}';
+    var sel = document.getElementById('curvas-sel-'+uid);
+    SERIES.forEach(function(s,i){
+      var o = document.createElement('option');
+      o.value = i; o.textContent = s.label; sel.appendChild(o);
+    });
+
+    window['toggleCurvas_'+uid] = function(){
+      var body = document.getElementById('curvas-body-'+uid);
+      var arrow = document.getElementById('curvas-arrow-'+uid);
+      var open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      arrow.textContent = open ? '▼ mostrar' : '▲ ocultar';
+      if(!open) window['drawCurva_'+uid]();
+    };
+
+    window['drawCurva_'+uid] = function(){
+      var idx = parseInt(sel.value)||0;
+      var serie = SERIES[idx];
+      if(!serie||serie.pts.length<2) return;
+      var pts = serie.pts;
+      var canvas = document.getElementById('curvas-cv-'+uid);
+      var tblEl  = document.getElementById('curvas-tbl-'+uid);
+      var dpr = window.devicePixelRatio||1;
+      var W = canvas.parentElement.clientWidth-2;
+      var H = Math.min(280, Math.round(W*0.4));
+      canvas.width = W*dpr; canvas.height = H*dpr;
+      canvas.style.width = W+'px'; canvas.style.height = H+'px';
+      var ctx = canvas.getContext('2d');
+      ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+
+      var PAD = {t:24,r:16,b:52,l:54};
+      var cW=W-PAD.l-PAD.r, cH=H-PAD.t-PAD.b;
+      var vals = pts.map(function(p){return p.val;});
+      var minV=Math.min.apply(null,vals), maxV=Math.max.apply(null,vals);
+      var pad=(maxV-minV||Math.abs(maxV)||1)*0.18;
+      var yMin=minV-pad, yMax=maxV+pad;
+      function xOf(i){return PAD.l+(pts.length>1?i/(pts.length-1):0.5)*cW;}
+      function yOf(v){return PAD.t+cH-((v-yMin)/(yMax-yMin))*cH;}
+
+      var st = getComputedStyle(document.documentElement);
+      function cv(name,fb){var v=st.getPropertyValue(name).trim();return v||fb;}
+      var C = {ac:cv('--ac','#1560a8'),gn:cv('--gn','#1a7540'),tx2:cv('--tx2','#445570'),brd:cv('--brd','#dde5ef'),am:cv('--am','#b06000')};
+
+      // Grid
+      for(var gi=0;gi<=5;gi++){
+        var gy=PAD.t+(gi/5)*cH, gv=yMax-(gi/5)*(yMax-yMin);
+        ctx.strokeStyle=C.brd; ctx.lineWidth=0.5;
+        ctx.beginPath(); ctx.moveTo(PAD.l,gy); ctx.lineTo(PAD.l+cW,gy); ctx.stroke();
+        ctx.fillStyle=C.tx2; ctx.font='10px monospace'; ctx.textAlign='right';
+        ctx.fillText(Math.abs(gv)<10?gv.toFixed(1):Math.round(gv), PAD.l-5, gy+3.5);
+      }
+
+      // Trend line
+      var n=pts.length;
+      var sx=0,sy=0,sxy=0,sx2=0;
+      for(var ti=0;ti<n;ti++){sx+=ti;sy+=pts[ti].val;sxy+=ti*pts[ti].val;sx2+=ti*ti;}
+      var slope=(n*sxy-sx*sy)/(n*sx2-sx*sx||1);
+      var inter=(sy-slope*sx)/n;
+      ctx.strokeStyle=C.tx2+'88'; ctx.lineWidth=1.2; ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(xOf(0),yOf(inter)); ctx.lineTo(xOf(n-1),yOf(slope*(n-1)+inter)); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Area fill
+      ctx.beginPath(); ctx.moveTo(xOf(0),yOf(pts[0].val));
+      for(var ai=1;ai<n;ai++) ctx.lineTo(xOf(ai),yOf(pts[ai].val));
+      ctx.lineTo(xOf(n-1),PAD.t+cH); ctx.lineTo(xOf(0),PAD.t+cH); ctx.closePath();
+      ctx.fillStyle=C.ac+'28'; ctx.fill();
+
+      // Line
+      ctx.strokeStyle=C.ac; ctx.lineWidth=2.5; ctx.lineJoin='round';
+      ctx.beginPath();
+      for(var li=0;li<n;li++){ if(li===0) ctx.moveTo(xOf(0),yOf(pts[0].val)); else ctx.lineTo(xOf(li),yOf(pts[li].val)); }
+      ctx.stroke();
+
+      // Points + labels
+      for(var pi=0;pi<n;pi++){
+        var x=xOf(pi),y=yOf(pts[pi].val),col=pts[pi].isActual?C.gn:C.ac;
+        ctx.beginPath(); ctx.arc(x,y,pts[pi].isActual?6:4,0,Math.PI*2);
+        ctx.fillStyle=col; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.fill(); ctx.stroke();
+        ctx.fillStyle=col; ctx.font='bold 10px monospace'; ctx.textAlign='center';
+        ctx.fillText(Math.abs(pts[pi].val)<10?pts[pi].val.toFixed(1):Math.round(pts[pi].val),x,y-10);
+      }
+
+      // X labels
+      ctx.fillStyle=C.tx2; ctx.font='10px sans-serif'; ctx.textAlign='center';
+      for(var xi=0;xi<n;xi++){
+        ctx.save(); ctx.translate(xOf(xi),PAD.t+cH+14); ctx.rotate(-Math.PI/6);
+        ctx.fillText(pts[xi].date,0,0); ctx.restore();
+      }
+
+      // Title + trend arrow
+      var trendUp=slope>0.05, trendDn=slope<-0.05;
+      ctx.textAlign='left'; ctx.font='11px sans-serif'; ctx.fillStyle=C.tx2;
+      ctx.fillText(serie.label, PAD.l, 14);
+      ctx.fillStyle=trendUp?C.am:trendDn?C.gn:C.tx2;
+      ctx.font='bold 12px sans-serif';
+      ctx.fillText(trendUp?' ↑ sube':trendDn?' ↓ baja':' → estable', PAD.l+ctx.measureText(serie.label).width+2, 14);
+
+      // Table
+      var dir=trendUp?'↑ sube':trendDn?'↓ baja':'→ estable';
+      var rows='';
+      for(var ri=0;ri<pts.length;ri++){
+        var diff=ri===0?null:pts[ri].val-pts[ri-1].val;
+        var dStr=diff===null?'—':(diff>0?'+':'')+diff.toFixed(1);
+        var dCol=diff===null?'':diff>0?'color:'+C.am:'color:'+C.gn;
+        rows+='<tr style="border-bottom:1px solid #eee"><td style="padding:.15rem .4rem;'+(pts[ri].isActual?'font-weight:700;color:'+C.gn:'')+'">'+pts[ri].date+(pts[ri].isActual?' ●':'')+'</td><td style="font-family:monospace;font-weight:700;text-align:right;padding:.15rem .4rem">'+(Math.abs(pts[ri].val)<10?pts[ri].val.toFixed(1):Math.round(pts[ri].val))+'</td><td style="font-family:monospace;text-align:right;padding:.15rem .4rem;'+dCol+'">'+dStr+'</td></tr>';
+      }
+      tblEl.innerHTML='<div style="font-size:.6rem;color:'+C.tx2+';font-family:monospace;margin-bottom:.3rem">Tendencia: <strong>'+dir+'</strong> &nbsp;·&nbsp; Mín: <strong>'+Math.min.apply(null,vals).toFixed(1)+'</strong> &nbsp;·&nbsp; Máx: <strong>'+Math.max.apply(null,vals).toFixed(1)+'</strong> &nbsp;·&nbsp; Último: <strong>'+vals[vals.length-1].toFixed(1)+'</strong></div><table style="border-collapse:collapse;font-size:.65rem;width:100%"><thead><tr><th style="text-align:left;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Fecha</th><th style="text-align:right;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Valor</th><th style="text-align:right;padding:.15rem .4rem;border-bottom:1px solid #ccc;font-family:monospace;font-size:.5rem;color:'+C.tx2+';text-transform:uppercase">Δ</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    };
+  })();
+  <\/script>`;
 }
 
 function renderLabSection(p){
@@ -2466,15 +2996,23 @@ body{background:var(--bg);color:var(--tx);font-family:var(--sans);min-height:100
 .hdr h1{font-size:.85rem;font-weight:700;color:var(--ac);}
 .hdr .sub{font-size:.6rem;color:var(--mu);font-family:var(--mono);margin-top:.1rem;}
 .hbadge{background:var(--acl);color:var(--ac);font-family:var(--mono);font-size:.6rem;font-weight:600;padding:.22rem .6rem;border-radius:20px;border:1px solid #b8d4f5;}
-.tabs{background:var(--sur);border-bottom:1px solid var(--brd);padding:0 1.5rem;display:flex;gap:.06rem;overflow-x:auto;}
+.hbtn{background:var(--sur2);border:1px solid var(--brd);border-radius:5px;cursor:pointer;font-size:.85rem;padding:.18rem .4rem;color:var(--mu);line-height:1;transition:all .12s;}
+.hbtn:hover{background:var(--brd);color:var(--tx);}
+.jump-nav{background:var(--sur);border-bottom:1px solid var(--brd);padding:.38rem 1rem;gap:.3rem;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;box-shadow:0 1px 4px rgba(0,0,0,.04);}
+.jump-nav::-webkit-scrollbar{height:2px;}.jump-nav::-webkit-scrollbar-thumb{background:var(--brd2);}
+.jbtn{background:none;border:1px solid var(--brd);border-radius:20px;cursor:pointer;font-family:var(--mono);font-size:.52rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--tx2);padding:.22rem .62rem;white-space:nowrap;transition:all .12s;flex-shrink:0;}
+.jbtn:hover{background:var(--acl);border-color:var(--ac);color:var(--ac);}
+.tabs{background:var(--sur);border-bottom:1px solid var(--brd);padding:0 .75rem;display:flex;gap:.15rem;overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .tabs::-webkit-scrollbar{height:3px;}.tabs::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:2px;}
-.tb{display:flex;flex-direction:column;align-items:flex-start;padding:.68rem .88rem .58rem;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;font-family:var(--sans);color:var(--tx2);min-width:108px;}
+.tb{display:flex;flex-direction:column;align-items:flex-start;padding:.52rem .72rem .44rem;border:none;background:transparent;cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;white-space:nowrap;font-family:var(--sans);color:var(--tx2);min-width:0;max-width:160px;}
 .tb:hover{background:var(--sur2);}
 .tb.active{border-bottom-color:var(--ac);color:var(--ac);background:var(--acl);}
-.tb .bl{font-family:var(--mono);font-size:.51rem;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--mu);margin-bottom:.1rem;}
-.tb.active .bl{color:var(--ac);opacity:.7;}
-.tb .bn{font-size:.75rem;font-weight:600;line-height:1.2;}
-.tb .ba{font-size:.57rem;color:var(--mu);margin-top:.04rem;}
+.tb-name{font-size:.78rem;font-weight:700;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;display:block;}
+.tb-meta{display:flex;align-items:center;gap:.28rem;margin-top:.18rem;flex-wrap:wrap;}
+.tb-bed{font-family:var(--mono);font-size:.55rem;font-weight:700;background:var(--brd);color:var(--tx2);border-radius:4px;padding:.05rem .3rem;}
+.tb.active .tb-bed{background:var(--ac);color:#fff;}
+.tb-day{font-family:var(--mono);font-size:.52rem;color:var(--mu);}
+.tb.active .tb-day{color:var(--ac);opacity:.8;}
 .panels{padding:1.1rem 1.5rem 3rem;}
 .panel{display:none;}.panel.active{display:block;}
 .pg{display:grid;grid-template-columns:252px 1fr;gap:1rem;max-width:1200px;}
@@ -2488,8 +3026,13 @@ body{background:var(--bg);color:var(--tx);font-family:var(--sans);min-height:100
 .dp-w{background:rgba(255,200,80,.3);border-color:rgba(255,200,80,.6);}
 .dp-r{background:rgba(255,100,100,.3);border-color:rgba(255,150,150,.6);}
 .card{background:var(--sur);border:1px solid var(--brd);border-radius:8px;overflow:hidden;margin-bottom:.7rem;}
-.ct{font-family:var(--mono);font-size:.49rem;font-weight:600;letter-spacing:.17em;text-transform:uppercase;color:var(--mu);padding:.52rem .95rem 0;}
+.ct{font-family:var(--mono);font-size:.49rem;font-weight:600;letter-spacing:.17em;text-transform:uppercase;color:var(--mu);padding:.45rem .95rem;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;border-bottom:1px solid transparent;transition:background .12s;}
+.ct:hover{background:var(--sur2);}
+.ct.open{border-bottom-color:var(--brd);}
+.ct-arrow{font-size:.7rem;opacity:.45;transition:transform .2s;flex-shrink:0;margin-left:.4rem;}
+.ct.open .ct-arrow{transform:rotate(180deg);}
 .cb{padding:.38rem .95rem .7rem;}
+.cb.collapsed{display:none;}
 .sh{display:flex;align-items:center;gap:.33rem;font-family:var(--mono);font-size:.54rem;font-weight:600;letter-spacing:.11em;text-transform:uppercase;margin:.55rem 0 .26rem;border-bottom:1px solid var(--brd);padding-bottom:.18rem;}
 .sh:first-child{margin-top:0;}
 .sd{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
@@ -2522,6 +3065,13 @@ body{background:var(--bg);color:var(--tx);font-family:var(--sans);min-height:100
 .abxd-r{background:var(--rdl);color:var(--rd);border-color:#f0b8b8;font-family:var(--mono);font-size:.56rem;padding:.08rem .35rem;border-radius:10px;}
 .abxd-g{background:var(--gnl);color:var(--gn);border-color:#a0d8b8;font-family:var(--mono);font-size:.56rem;padding:.08rem .35rem;border-radius:10px;}
 .abxd-o{background:var(--orl);color:var(--or);border-color:#f0c898;font-family:var(--mono);font-size:.56rem;padding:.08rem .35rem;border-radius:10px;}
+.atb-row{padding:.35rem 0;border-bottom:1px solid var(--sur3);}
+.atb-row:last-child{border-bottom:none;}
+.atb-renal-alert{background:rgba(220,50,50,.06);border-left:3px solid var(--rd);padding-left:.4rem;border-radius:4px;}
+.droga-row{padding:.3rem 0;border-bottom:1px solid var(--sur3);}
+.droga-row:last-child{border-bottom:none;}
+.droga-alert{background:rgba(220,50,50,.07);border-left:3px solid var(--rd);padding-left:.4rem;border-radius:4px;}
+.cult-positivo{background:rgba(220,50,50,.06)!important;}
 .drip{width:100%;border-collapse:collapse;font-size:.67rem;}
 .drip th{font-family:var(--mono);font-size:.44rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);text-align:left;padding:.15rem .33rem;border-bottom:1px solid var(--brd);}
 .drip td{padding:.22rem .33rem;border-bottom:1px solid var(--bg);color:var(--tx2);}
@@ -2575,14 +3125,76 @@ body{background:var(--bg);color:var(--tx);font-family:var(--sans);min-height:100
     <h1>Terapia Intensiva Adultos — Hospital Regional Río Gallegos</h1>
     <div class="sub">RESUMEN DE GUARDIA · ${dateStr}</div>
   </div>
-  <div class="hbadge">${patients.length} paciente${patients.length!==1?'s':''} activo${patients.length!==1?'s':''}</div>
+  <div style="display:flex;align-items:center;gap:.5rem">
+    <div class="hbadge">${patients.length} paciente${patients.length!==1?'s':''} activo${patients.length!==1?'s':''}</div>
+    <button class="hbtn" onclick="toggleAllCards(true)" title="Expandir todo">⊞</button>
+    <button class="hbtn" onclick="toggleAllCards(false)" title="Colapsar todo">⊟</button>
+  </div>
 </div>
 <div class="tabs">${tabs}</div>
+<div id="jump-nav" class="jump-nav" style="display:none"></div>
 <div class="panels">${panels}</div>
 <script>
 function showTab(n){
   document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',i===n));
   document.querySelectorAll('.tb').forEach((b,i)=>b.classList.toggle('active',i===n));
+  buildJumpNav();
+}
+
+// ── Collapsible cards ──────────────────────────
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('.ct').forEach(function(ct){
+    var cb = ct.nextElementSibling;
+    if(!cb||!cb.classList.contains('cb')) return;
+    // Start expanded
+    ct.classList.add('open');
+    var arr = document.createElement('span');
+    arr.className = 'ct-arrow'; arr.textContent = '▾';
+    ct.appendChild(arr);
+    ct.addEventListener('click',function(){
+      var open = ct.classList.toggle('open');
+      cb.classList.toggle('collapsed', !open);
+    });
+  });
+  buildJumpNav();
+});
+
+function toggleAllCards(expand){
+  document.querySelectorAll('.panel.active .ct').forEach(function(ct){
+    var cb = ct.nextElementSibling;
+    if(!cb||!cb.classList.contains('cb')) return;
+    if(expand){ ct.classList.add('open'); cb.classList.remove('collapsed'); }
+    else { ct.classList.remove('open'); cb.classList.add('collapsed'); }
+  });
+}
+
+// ── Jump nav ────────────────────────────────────
+function buildJumpNav(){
+  var nav = document.getElementById('jump-nav');
+  var panel = document.querySelector('.panel.active');
+  if(!panel){ nav.style.display='none'; return; }
+  var cards = panel.querySelectorAll('.card');
+  if(cards.length < 3){ nav.style.display='none'; return; }
+  nav.innerHTML = '';
+  nav.style.display = 'flex';
+  cards.forEach(function(card, i){
+    var ctEl = card.querySelector('.ct');
+    var label = ctEl ? ctEl.childNodes[0].textContent.trim() : ('Sección '+(i+1));
+    if(!label) return;
+    var btn = document.createElement('button');
+    btn.className = 'jbtn';
+    btn.textContent = label;
+    btn.onclick = function(){
+      // Expand the card if collapsed
+      if(ctEl && !ctEl.classList.contains('open')){
+        ctEl.classList.add('open');
+        var cb = ctEl.nextElementSibling;
+        if(cb) cb.classList.remove('collapsed');
+      }
+      card.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+    nav.appendChild(btn);
+  });
 }
 <\/script>
 <div id="preview-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(3px)">
